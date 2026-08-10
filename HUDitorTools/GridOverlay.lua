@@ -1,20 +1,14 @@
 -- -----------------------------------------------------------------------------
--- HUDGridSnap — grid overlay (adapted from LuiExtended GridOverlay)
+-- HUDitorTools — grid overlay (adapted from LuiExtended GridOverlay)
 -- -----------------------------------------------------------------------------
 
-local DEFAULT_GRID_SIZE = 15
-local OVERLAY_CONTROL_NAME = "HUDEditorTools_GridSnap_Overlay"
-local LINE_TEMPLATE_V = "HUDEditorTools_GridSnap_Overlay_Line_V"
-local LINE_TEMPLATE_H = "HUDEditorTools_GridSnap_Overlay_Line_H"
-local EDITOR_SCENE_NAME = "hud_editor_keyboard"
+local HT = HUDitorTools
 
-local GRID_COLOR =
-{
-    r = 0.1,
-    g = 0.7,
-    b = 0.9,
-    a = 0.35,
-}
+local DEFAULT_GRID_SIZE = 15
+local OVERLAY_CONTROL_NAME = "HUDitorTools_GridSnap_Overlay"
+local LINE_TEMPLATE_V = "HUDitorTools_GridSnap_Overlay_Line_V"
+local LINE_TEMPLATE_H = "HUDitorTools_GridSnap_Overlay_Line_H"
+local EDITOR_SCENE_NAME = "hud_editor_keyboard"
 
 local windowManager = GetWindowManager()
 local sceneManager = SCENE_MANAGER
@@ -30,7 +24,8 @@ local function ApplyLineStyle(line)
     line:SetDrawLayer(DL_BACKGROUND)
     line:SetDrawTier(DT_LOW)
     line:SetDrawLevel(2)
-    line:SetColor(GRID_COLOR.r, GRID_COLOR.g, GRID_COLOR.b, GRID_COLOR.a)
+    local color = HT.SV.gridColor
+    line:SetColor(color.r, color.g, color.b, color.a)
     line:SetThickness(1)
 end
 
@@ -109,6 +104,7 @@ function Overlay:UpdateLines(gridSize)
         line:ClearAnchors()
         line:SetAnchor(TOPLEFT, self.control, TOPLEFT, offsetX, 0)
         line:SetAnchor(BOTTOMLEFT, self.control, BOTTOMLEFT, offsetX, 0)
+        ApplyLineStyle(line)
     end
     self:ReleaseUnused(self.verticalPool, verticalLineCount)
 
@@ -119,6 +115,7 @@ function Overlay:UpdateLines(gridSize)
         line:ClearAnchors()
         line:SetAnchor(TOPLEFT, self.control, TOPLEFT, 0, offsetY)
         line:SetAnchor(TOPRIGHT, self.control, TOPRIGHT, 0, offsetY)
+        ApplyLineStyle(line)
     end
     self:ReleaseUnused(self.horizontalPool, horizontalLineCount)
 end
@@ -159,11 +156,11 @@ local function GetOverlay()
     return sharedOverlay
 end
 
-function HUDGridSnap.RefreshGridOverlay()
-    local sv = HUDGridSnap.SV
-    GetOverlay():Refresh(HUDGridSnap.IsEditorShowing() and sv.showGrid, sv.gridSize)
+function HT.RefreshGridOverlay()
+    local sv = HT.SV
+    GetOverlay():Refresh(HT.IsEditorShowing() and sv.showGrid, sv.gridSize)
 end
 
-function HUDGridSnap.HideGridOverlay()
+function HT.HideGridOverlay()
     GetOverlay():Hide()
 end

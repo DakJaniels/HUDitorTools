@@ -5,7 +5,7 @@
 <GuiXml xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/DakJaniels/esoui_gui_xsd/main/esoui_gui_xml.xsd">
   <Controls>
-    <TopLevelControl name="HUDEditorTools_GridSnap_Overlay"
+    <TopLevelControl name="HUDitorTools_GridSnap_Overlay"
                      mouseEnabled="false"
                      movable="false"
                      clampedToScreen="false"
@@ -25,14 +25,14 @@
               offsetX="0"
               offsetY="0" />
     </TopLevelControl>
-    <Line name="HUDEditorTools_GridSnap_Overlay_Line_V"
+    <Line name="HUDitorTools_GridSnap_Overlay_Line_V"
           virtual="true"
           hidden="true"
           thickness="1"
           layer="BACKGROUND"
           level="0"
           tier="LOW" />
-    <Line name="HUDEditorTools_GridSnap_Overlay_Line_H"
+    <Line name="HUDitorTools_GridSnap_Overlay_Line_H"
           virtual="true"
           hidden="true"
           thickness="1"
