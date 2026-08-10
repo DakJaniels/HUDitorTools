@@ -135,7 +135,6 @@ function HT.buildSettingsMenu()
             end,
             setFunc = function(r,g,b,a)
                 settings.gridColor = { r=r, g=g, b=b, a=a }
-                HT.gridColorChanged = true
             end,
             default = function()
                 local defaultGridColor = defaults.gridColor

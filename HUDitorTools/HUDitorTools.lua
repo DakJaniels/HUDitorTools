@@ -27,7 +27,6 @@ local GRID_DEFAULT_COLOR =
     b = 0.9,
     a = 0.25,
 }
-HT.gridColorChanged = false
 
 --SavedVariables
 HT.Defaults     =
@@ -565,7 +564,7 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
     )
     local sliderDataHideNamesShortherThan = {
         hideLabel = false,							-- optional boolean or function returning a boolean Hide the label at the row
-        labelWidth = "60%",							-- optional string/number or function returning a string/number	Width of the label at the row
+        --labelWidth = "60%",							-- optional string/number or function returning a string/number	Width of the label at the row
         value = function() return HT.SV.HUDEditorHideNamesShorterThan end,									-- optional number or function returning a number Value of the slider (e.g. from SavedVariables)
         min = 0,									-- optional number or function returning a number Minimum value of the slider (e.g. from SavedVariables)
         max = 1000, 								-- optional number or function returning a number Maximum value of the slider (e.g. from SavedVariables)
@@ -573,7 +572,7 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
         showValueLabel = true,						-- optional boolean or function returning a boolean Show the value label at the row, right side of the slider
         valueLabelFont = "ZoFontWinT2",				-- optional string or function returning a string The font of the value label
         --hideValueTooltip = true,					-- optional boolean or function returning a boolean Hide the tooltip showing the actual value, min, max and tooltip of the row at the slider
-        width = "40%",								-- optional string/number or function returning a string/number The width of the slider
+        width = "60%",								-- optional string/number or function returning a string/number The width of the slider
         --contextMenuCallback = function(comboBox, p_sliderCtrl, data) end,	-- optional function to open a contextMenu at the slider (if right clicked)
     }
     local specialCallbackData = { --upon close of the LSM contextMenu update the shown element names, based on the slider's maxWidth value
@@ -598,7 +597,7 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
             function(comboBox, slider, value)
                 HT.SV.HUDEditorHideNamesShorterThan = value
                 rebuildOfHUDEditorNeeded = true
-            end, sliderDataHideNamesShortherThan, { tooltip = "Hide the elements which name is shorten then the chosen slider value."  }
+            end, sliderDataHideNamesShortherThan, { tooltip = "\nHide the elements which name is shorter than the chosen slider value."  }
     )
     if isAnyHUDEditorElementHidden() then
         addCustomScrollableMenuHeader("HUD Editor - Hidden Elements (#" .. tostring(getNumHUDEditorElementsHidden()) .. ")")
@@ -610,11 +609,14 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
     addCustomScrollableMenuCheckbox("Show grid overlay",
             function(comboBox, itemName, item, checked, data)
                 HT.SV.showGrid = checked
+                refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_BOTH, comboBox)
+                HT.RefreshGridOverlay()
             end,
             function() return HT.SV.showGrid end, { tooltip = "Enable a grid below the HUD editor elements, where you can visually align the elements to (or use the snap-to-grid feature below)."}
     )
     addCustomScrollableMenuCheckbox("Enable snap-to-grid",
             function(comboBox, itemName, item, checked, data)
+                refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_BOTH, comboBox)
                 HT.SV.gridSnap = checked
             end,
             function() return HT.SV.gridSnap end,
@@ -623,7 +625,29 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
                 enabled = function() return HT.SV.showGrid end
             }
     )
-    showCustomScrollableMenu(nil, { minDropdownWidth = 250 }, specialCallbackData)
+    local sliderDataGridSize = {
+        hideLabel = false,							-- optional boolean or function returning a boolean Hide the label at the row
+        --labelWidth = "60%",							-- optional string/number or function returning a string/number	Width of the label at the row
+        value = function() return HT.SV.gridSize end,									-- optional number or function returning a number Value of the slider (e.g. from SavedVariables)
+        min = 2,									-- optional number or function returning a number Minimum value of the slider (e.g. from SavedVariables)
+        max = 100, 								-- optional number or function returning a number Maximum value of the slider (e.g. from SavedVariables)
+        step = 1,									-- optional number or function returning a number The step of the slider (e.g. from SavedVariables)
+        showValueLabel = true,						-- optional boolean or function returning a boolean Show the value label at the row, right side of the slider
+        valueLabelFont = "ZoFontWinT2",				-- optional string or function returning a string The font of the value label
+        --hideValueTooltip = true,					-- optional boolean or function returning a boolean Hide the tooltip showing the actual value, min, max and tooltip of the row at the slider
+        width = "60%",								-- optional string/number or function returning a string/number The width of the slider
+        --contextMenuCallback = function(comboBox, p_sliderCtrl, data) end,	-- optional function to open a contextMenu at the slider (if right clicked)
+    }
+    addCustomScrollableMenuSlider("Grid size",
+            function(comboBox, slider, value)
+                HT.SV.gridSize = value
+                HT.RefreshGridOverlay()
+            end, sliderDataGridSize, {
+                tooltip = "\nThe grid\'s size",
+                enabled = function() return HT.SV.showGrid end
+            }
+    )
+    showCustomScrollableMenu(nil, { minDropdownWidth = 325 }, specialCallbackData)
 end
 
 local buttonDataHUDEditInfoBoxSettings =
