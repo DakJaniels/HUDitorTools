@@ -122,6 +122,12 @@ local getValueOrCallback = LSM.Util.getValueOrCallback
 ------------------------------------------------------------------------------------------------------------------------
 --- Local helper functions
 ------------------------------------------------------------------------------------------------------------------------
+local function colorizeString(r, g, b, string)
+    if ZO_ColorizeString then return ZO_ColorizeString(r, g, b, string) end --sometimes this is nil all of sudden?
+    return string.format("|c%.2x%.2x%.2x%s|r", math.floor(r * 255), math.floor(g * 255), math.floor(b * 255), string)
+end
+
+
 local function getElementObject(elementCtrl)
     return elementCtrl and elementCtrl.object or nil
 end
@@ -302,161 +308,6 @@ local function hideElementUIInHUDOrEditor(elementCtrl, hideInHUDEditor)
     end
 end
 
-
-local function myIsCheckedAnyCheckboxInTheSubmenuCallback(p_comboBox, p_item, entriesFound)
-    for k, v in ipairs(entriesFound) do
-        --d("found cbox: " .. tostring(v.label or v.name) .. "; checked = " ..tostring(v.checked))
-        if v.checked == true then return true end
-    end
-    return false
-end
-local function myCallbackUnhideElementsNamedInSubmenuSame(p_comboBox, p_item, entriesFound)
-    local wasAnyEntyDeleted = false
-    --Loop at entriesFound, get it's .data.dataSource etc. and check SavedVariables etc.
-    for k, v in ipairs(entriesFound) do
-        local name = v.label or v.name
-        -- d("[HT]name of entry: " .. tostring(name).. ", checked: " .. tostring(v.checked))
-        if v.checked and v.element ~= nil and v.elementCtrl ~= nil then
-            --showHiddenHUDElementAgain(v.element, v.elementCtrl)
-            local wasAnyEntyDeletedLoop = hideElementUIInHUDOrEditor(v.elementCtrl, false)
-            if not wasAnyEntyDeleted and wasAnyEntyDeletedLoop == true then wasAnyEntyDeleted = true end
-        end
-    end
-    if wasAnyEntyDeleted == true then
-        refreshCustomScrollableMenu(p_item, LSM_UPDATE_MODE_SUBMENU, p_comboBox)
-    end
-end
-
-local showHUDElementContextMenu
-local function buildHiddenHUDElementLSMSubmenuEntry(hiddenHUDElement, elementCtrl, retTab)
-    if #retTab == 0 then
-        retTab[1] = {
-            label = "Unhide selected",
-            entryType = LSM_ENTRY_TYPE_BUTTON,
-            callback = function(comboBox, itemName, item, checked, data)
-                --Use LSM API func to get the same submenu's checkboxes
-                runCustomScrollableMenuItemsCallback(comboBox, item, myCallbackUnhideElementsNamedInSubmenuSame, { LSM_ENTRY_TYPE_CHECKBOX }, false)
-                --refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_BOTH, comboBox) --does not refresh the submenu, why not? Removed entries should be removed from the submenu too!
-                --Workaround: Rebuild the total menu and show it new
-                clearCustomScrollableMenu()
-            end,
-            sortPosition = 1,
-            doNotFilter = true,
-            enabled = function(comboBox, data)
-                --Enabled state based on if any checkbox in the same submenu is checked
-                if comboBox == nil or data == nil then
-                    comboBox, data = getCustomScrollableMenuCtrlsInfo(moc(), nil)
-                end
-                local foundItems, callbackFuncResult = runCustomScrollableMenuItemsCallback(comboBox, data, myIsCheckedAnyCheckboxInTheSubmenuCallback, { LSM_ENTRY_TYPE_CHECKBOX }, false)
-                return foundItems and callbackFuncResult
-            end,
-        }
-        retTab[2] = {
-            label = "-",
-            entryType = LSM_ENTRY_TYPE_DIVIDER,
-            sortPosition = 2,
-            doNotFilter = true,
-        }
-    end
-    retTab[#retTab +1] = {
-        label = getElementDisplayName(elementCtrl),
-        entryType = LSM_ENTRY_TYPE_CHECKBOX,
-        checked = false,
-        callback = function(comboBox, itemName, item, checked, data)
-            refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_SUBMENU, comboBox)
-        end,
-        additionalData = {
-            element = hiddenHUDElement,
-            elementCtrl = elementCtrl,
-        },
-        buttonGroup = 1,
-        contextMenuCallback = function(comboBox, control, data)
-            LSM.ButtonGroupDefaultContextMenu(comboBox, control, data, true) --use ZO_Menu contextMenu!
-        end,
-    }
-end
-
-local function hiddenHUDEditorElementsIteratorFunc(callbackFunc, retTab, sortFunc)
-    local hiddenHUDElements = HT.SV.HUDEditHiddenControls
-    if type(callbackFunc) ~= "function" or not isAnyHUDEditorElementHidden() then return end
-
-    for hiddenHUDElement, isHidden in pairs(hiddenHUDElements) do
-        local elementCtrl = getElementControlByName(hiddenHUDElement)
-        callbackFunc(hiddenHUDElement, elementCtrl, retTab)
-    end
-
-    --Table sorting at the end was requested?
-    if not ZO_IsTableEmpty(retTab) and type(sortFunc) == "function" then
-        return sortFunc(retTab)
-    end
-    return retTab
-end
-
-local function showAllHiddenHUDEditorElementsAgain()
-    hiddenHUDEditorElementsIteratorFunc(showHiddenHUDElementAgain)
-end
-
-local function buildHiddenHUDElementLSMSubmenu(retTab, sortFunc)
-    return hiddenHUDEditorElementsIteratorFunc(buildHiddenHUDElementLSMSubmenuEntry, retTab, sortFunc)
-end
-
---[[
-local function getCustomOptionsByKey(elementObject, keyName)
-    if not elementObject then return end
-    local options = elementObject:GetCustomOptions()
-    if ZO_IsTableEmpty(options) then return end
-    for _, optionData in ipairs(options) do
-        if optionData.key == keyName then
-            return optionData
-        end
-    end
-    return nil
-end
-]]
-function showHUDElementContextMenu(elementCtrl)
-    clearCustomScrollableMenu()
-
-    local elementName, elementObject, elementData = getElementRealTLCName(elementCtrl, nil)
-    if not elementObject or not elementData then return end
-
-    --Does not work as element will not be selected via right click with the mouse, only left click as InfoBox dialog opens!
-    --local selectedElement = HUD_EDITOR_KEYBOARD:GetSelectedElement()
-    --if not selectedElement then return end
-    --[[
-    local optionsDataOfKeyVisible = getCustomOptionsByKey(elementObject, "Visible")
-    if optionsDataOfKeyVisible ~= nil then
-        visibleText = optionsDataOfKeyVisible.name
-    end
-    ]]
-
-    --Hide control in HUD editor (not on real HUD!)
-    addCustomScrollableMenuHeader(HUDEditorContextMenuText .. " - " .. elementName)
-    local isCurrentlyHiddenInHUDEditor = getHUDElementHiddenState(elementName)
-    --d(">isHiddenInHUDEditor: " ..tostring(isHCurrentlyHiddenInHUDEditor))
-    addCustomScrollableMenuEntry(visibleText .. ": " .. ((isCurrentlyHiddenInHUDEditor and onText) or offText),
-            function() hideElementUIInHUDOrEditor(elementCtrl, not isCurrentlyHiddenInHUDEditor) end, LSM_ENTRY_TYPE_NORMAL)
-
-    addCustomScrollableMenuEntry(resetToDefaultText, function()
-                elementCtrl.object:Select()
-                HE_KB:ResetSelectedToDefault()
-            end, LSM_ENTRY_TYPE_NORMAL)
-
-    if isAnyHUDEditorElementHidden() then
-        addCustomScrollableMenuHeader("HUD Editor - Hidden Elements (#" .. tostring(getNumHUDEditorElementsHidden()) .. ")")
-        local userHiddenHUDElementsTab = buildHiddenHUDElementLSMSubmenu({ }, sortCustomScrollableMenu)
-        addCustomScrollableSubMenuEntry("Hidden Elements", userHiddenHUDElementsTab)
-        addCustomScrollableMenuEntry("|c00F000Show all|r hidden elements again", function() showAllHiddenHUDEditorElementsAgain() end, LSM_ENTRY_TYPE_NORMAL)
-    end
-    showCustomScrollableMenu()
-end
-
-local function onMouseUpShowContextMenuAtHUDEditElementHandler(elementCtrl, button, upInside)
-    --d("[HT]HUDElement_OnMouseUpHook - button: " ..tostring(button) .. ", upInside: " ..tostring(upInside))
-    if button == MOUSE_BUTTON_INDEX_RIGHT and upInside then
-        showHUDElementContextMenu(elementCtrl)
-    end
-end
-
 local function updateHUDEditorElementHiddenState(elementCtrl)
     --local elementObject = elementCtrl.object
     if elementCtrl ~= nil then
@@ -476,34 +327,36 @@ local function updateHUDEditorElementHiddenState(elementCtrl)
     end
 end
 
+local function getCustomHUDElementBorderColor(elementObject)
+    --Change the borderColor to use an e.g. red outline (defined cia the settings color picker)
+    return (elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden) or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden
+end
+
 local function updateHUDEditorElementBorderColor(elementObject)
     if elementObject == nil or elementObject.elementData == nil then return end
     local optionsDataOfKeyVisible = elementObject:GetCustomOptionValue("Visible")
     if optionsDataOfKeyVisible ~= nil then
         local changeBorderColor = false
-        local borderColors = elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected
+        --default borderColors (vanilla)
+        local borderColor         = elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected
         local typeOfVisibleOption = type(optionsDataOfKeyVisible)
         if typeOfVisibleOption == "boolean" then
             if optionsDataOfKeyVisible == true then
                 changeBorderColor = true
             else
                 changeBorderColor = true
-                --Change the borderColor to use a red outline
-                borderColors = elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden
+                borderColor       = getCustomHUDElementBorderColor(elementObject)
             end
-        elseif typeOfVisibleOption == "string" then
-            --"Automatic" ?
         elseif typeOfVisibleOption == "number" then
-            if optionsDataOfKeyVisible == 0 then
+            if optionsDataOfKeyVisible == 1 then
                 changeBorderColor = true
-                --Change the borderColor to use a red outline
-                borderColors = elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden
-            elseif optionsDataOfKeyVisible == 1 then
+            elseif optionsDataOfKeyVisible == 0 then
                 changeBorderColor = true
+                borderColor       = getCustomHUDElementBorderColor(elementObject)
             end
         end
-        if changeBorderColor == true and borderColors ~= nil then
-            elementObject.control:SetEdgeColor(borderColors.edge:UnpackRGBA())
+        if changeBorderColor == true and borderColor ~= nil then
+            elementObject.control:SetEdgeColor(borderColor.edge:UnpackRGBA())
         end
     end
 
@@ -549,6 +402,186 @@ local function updateHUDEditorElementBorderColor(elementObject)
     end
     --d("[HT]'" .. tostring(nameControl:GetText()) .. "' nameControlWidth: " .. tostring(nameControlWidth) .. " (" ..tostring(hideElementNameDueToWidth) .."), mouseOver: " .. tostring(elementObject.mouseOver) .. ", selected: " ..tostring(elementObject.selected) .. ", hideElementName: " ..tostring(hideElementName))
     nameControl:SetHidden(hideElementName)
+end
+
+
+
+local function myIsCheckedAnyCheckboxInTheSubmenuCallback(p_comboBox, p_item, entriesFound)
+    for k, v in ipairs(entriesFound) do
+        --d("found cbox: " .. tostring(v.label or v.name) .. "; checked = " ..tostring(v.checked))
+        if v.checked == true then return true end
+    end
+    return false
+end
+local function myCallbackUnhideElementsNamedInSubmenuSame(p_comboBox, p_item, entriesFound)
+    local wasAnyEntyDeleted = false
+    --Loop at entriesFound, get it's .data.dataSource etc. and check SavedVariables etc.
+    for k, v in ipairs(entriesFound) do
+        local name = v.label or v.name
+        -- d("[HT]name of entry: " .. tostring(name).. ", checked: " .. tostring(v.checked))
+        if v.checked and v.element ~= nil and v.elementCtrl ~= nil then
+            --showHiddenHUDElementAgain(v.element, v.elementCtrl)
+            local wasAnyEntyDeletedLoop = hideElementUIInHUDOrEditor(v.elementCtrl, false)
+            if not wasAnyEntyDeleted and wasAnyEntyDeletedLoop == true then wasAnyEntyDeleted = true end
+        end
+    end
+    if wasAnyEntyDeleted == true then
+        refreshCustomScrollableMenu(p_item, LSM_UPDATE_MODE_SUBMENU, p_comboBox)
+    end
+end
+
+local function checkIfInfoBoxLSMDropdownVisibleAndUpdateLSM(comboBox, ctrl)
+    --Wait for the current LSM contextMenu to close first, then
+    zo_callLater(function()
+        local infoBoxSelector = HE_KB.infoBoxSelector
+        if not infoBoxSelector or infoBoxSelector:IsHidden() then return end
+        local LSMComboBox = infoBoxSelector.m_comboBox or comboBox
+        if LSMComboBox and ctrl then
+            if LSMComboBox:IsDropdownVisible() == true then
+                --refresh the LSM there now
+                refreshCustomScrollableMenu(ctrl, LSM_UPDATE_MODE_MAINMENU, LSMComboBox)
+            end
+        end
+    end, 0)
+end
+
+local showHUDElementContextMenu
+local function buildHiddenHUDElementLSMSubmenuEntry(hiddenHUDElement, elementCtrl, retTab, control)
+    if #retTab == 0 then
+        retTab[1] = {
+            label = "Unhide selected",
+            entryType = LSM_ENTRY_TYPE_BUTTON,
+            callback = function(comboBox, itemName, item, checked, data)
+                --Use LSM API func to get the same submenu's checkboxes
+                runCustomScrollableMenuItemsCallback(comboBox, item, myCallbackUnhideElementsNamedInSubmenuSame, { LSM_ENTRY_TYPE_CHECKBOX }, false)
+                --refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_BOTH, comboBox) --does not refresh the submenu, why not? Removed entries should be removed from the submenu too!
+                --Workaround: Rebuild the total menu and show it new
+                clearCustomScrollableMenu() --closes the contextMenu
+                checkIfInfoBoxLSMDropdownVisibleAndUpdateLSM(comboBox, control)
+            end,
+            sortPosition = 1,
+            doNotFilter = true,
+            enabled = function(comboBox, data)
+                --Enabled state based on if any checkbox in the same submenu is checked
+                if comboBox == nil or data == nil then
+                    comboBox, data = getCustomScrollableMenuCtrlsInfo(moc(), nil)
+                end
+                local foundItems, callbackFuncResult = runCustomScrollableMenuItemsCallback(comboBox, data, myIsCheckedAnyCheckboxInTheSubmenuCallback, { LSM_ENTRY_TYPE_CHECKBOX }, false)
+                return foundItems and callbackFuncResult
+            end,
+        }
+        retTab[2] = {
+            label = "-",
+            entryType = LSM_ENTRY_TYPE_DIVIDER,
+            sortPosition = 2,
+            doNotFilter = true,
+        }
+    end
+    retTab[#retTab +1] = {
+        label = getElementDisplayName(elementCtrl),
+        entryType = LSM_ENTRY_TYPE_CHECKBOX,
+        checked = false,
+        callback = function(comboBox, itemName, item, checked, data)
+            refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_SUBMENU, comboBox)
+        end,
+        additionalData = {
+            element = hiddenHUDElement,
+            elementCtrl = elementCtrl,
+        },
+        buttonGroup = 1,
+        contextMenuCallback = function(comboBox, control, data)
+            LSM.ButtonGroupDefaultContextMenu(comboBox, control, data, true) --use ZO_Menu contextMenu!
+        end,
+    }
+end
+
+local function hiddenHUDEditorElementsIteratorFunc(callbackFunc, retTab, sortFunc, control)
+    local hiddenHUDElements = HT.SV.HUDEditHiddenControls
+    if type(callbackFunc) ~= "function" or not isAnyHUDEditorElementHidden() then return end
+
+    for hiddenHUDElement, isHidden in pairs(hiddenHUDElements) do
+        local elementCtrl = getElementControlByName(hiddenHUDElement)
+        callbackFunc(hiddenHUDElement, elementCtrl, retTab, control)
+    end
+
+    --Table sorting at the end was requested?
+    if not ZO_IsTableEmpty(retTab) and type(sortFunc) == "function" then
+        return sortFunc(retTab)
+    end
+    return retTab
+end
+
+local function showAllHiddenHUDEditorElementsAgain(comboBox, control)
+    hiddenHUDEditorElementsIteratorFunc(showHiddenHUDElementAgain)
+    checkIfInfoBoxLSMDropdownVisibleAndUpdateLSM(comboBox, control)
+end
+
+local function buildHiddenHUDElementLSMSubmenu(retTab, sortFunc, control)
+    return hiddenHUDEditorElementsIteratorFunc(buildHiddenHUDElementLSMSubmenuEntry, retTab, sortFunc, control)
+end
+
+--[[
+local function getCustomOptionsByKey(elementObject, keyName)
+    if not elementObject then return end
+    local options = elementObject:GetCustomOptions()
+    if ZO_IsTableEmpty(options) then return end
+    for _, optionData in ipairs(options) do
+        if optionData.key == keyName then
+            return optionData
+        end
+    end
+    return nil
+end
+]]
+local function buildHUDElementUserHiddenContextMenuSubmenu(control)
+    if isAnyHUDEditorElementHidden() then
+        addCustomScrollableMenuHeader("HUD Editor - Hidden Elements (#" .. tostring(getNumHUDEditorElementsHidden()) .. ")")
+        local userHiddenHUDElementsTab = buildHiddenHUDElementLSMSubmenu({ }, sortCustomScrollableMenu, control)
+        addCustomScrollableSubMenuEntry("Hidden Elements", userHiddenHUDElementsTab)
+        addCustomScrollableMenuEntry("|c00F000Show all|r hidden elements again", function(comboBox, itemName, item, selectionChanged, oldItem)
+            showAllHiddenHUDEditorElementsAgain(comboBox, control) end, LSM_ENTRY_TYPE_NORMAL
+        )
+    end
+end
+
+function showHUDElementContextMenu(elementCtrl)
+    clearCustomScrollableMenu()
+
+    local elementName, elementObject, elementData = getElementRealTLCName(elementCtrl, nil)
+    if not elementObject or not elementData then return end
+
+    --Does not work as element will not be selected via right click with the mouse, only left click as InfoBox dialog opens!
+    --local selectedElement = HUD_EDITOR_KEYBOARD:GetSelectedElement()
+    --if not selectedElement then return end
+    --[[
+    local optionsDataOfKeyVisible = getCustomOptionsByKey(elementObject, "Visible")
+    if optionsDataOfKeyVisible ~= nil then
+        visibleText = optionsDataOfKeyVisible.name
+    end
+    ]]
+
+    --Hide control in HUD editor (not on real HUD!)
+    addCustomScrollableMenuHeader(HUDEditorContextMenuText .. " - " .. elementName)
+    local isCurrentlyHiddenInHUDEditor = getHUDElementHiddenState(elementName)
+    --d(">isHiddenInHUDEditor: " ..tostring(isHCurrentlyHiddenInHUDEditor))
+    addCustomScrollableMenuEntry(visibleText .. ": " .. ((isCurrentlyHiddenInHUDEditor and onText) or offText),
+            function() hideElementUIInHUDOrEditor(elementCtrl, not isCurrentlyHiddenInHUDEditor) end, LSM_ENTRY_TYPE_NORMAL)
+
+    addCustomScrollableMenuEntry(resetToDefaultText, function()
+                elementCtrl.object:Select()
+                HE_KB:ResetSelectedToDefault()
+            end, LSM_ENTRY_TYPE_NORMAL)
+
+    buildHUDElementUserHiddenContextMenuSubmenu(elementCtrl)
+
+    showCustomScrollableMenu()
+end
+
+local function onMouseUpShowContextMenuAtHUDEditElementHandler(elementCtrl, button, upInside)
+    --d("[HT]HUDElement_OnMouseUpHook - button: " ..tostring(button) .. ", upInside: " ..tostring(upInside))
+    if button == MOUSE_BUTTON_INDEX_RIGHT and upInside then
+        showHUDElementContextMenu(elementCtrl)
+    end
 end
 
 local function getHUDEditorInfoBoxSettingsContextMenu()
@@ -601,8 +634,8 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
     )
     if isAnyHUDEditorElementHidden() then
         addCustomScrollableMenuHeader("HUD Editor - Hidden Elements (#" .. tostring(getNumHUDEditorElementsHidden()) .. ")")
-        addCustomScrollableMenuEntry("Show all hidden elements again", function()
-            showAllHiddenHUDEditorElementsAgain()
+        addCustomScrollableMenuEntry("Show all hidden elements again", function(comboBox, itemName, item, selectionChanged, oldItem)
+            showAllHiddenHUDEditorElementsAgain(comboBox, nil)
         end, LSM_ENTRY_TYPE_NORMAL)
     end
     addCustomScrollableMenuHeader("Grid")
@@ -752,6 +785,9 @@ local function InstallEditorHooks(fromSceneChange)
                             end
                         end, LSM_ENTRY_TYPE_NORMAL)
                     end
+
+                    buildHUDElementUserHiddenContextMenuSubmenu(control)
+
                     showCustomScrollableMenu(nil)
                 end
             end
@@ -770,7 +806,9 @@ local function InstallEditorHooks(fromSceneChange)
                     local elementNameOrigNow = getElementDisplayName(elementCtrl, elementCtrl.object) --elementCtrl.object:GetElementData():GetDisplayName()
                     local elementNameForHiddenInHudEditorCheck = getElementRealTLCName(elementCtrl, elementCtrl.object)
                     if getHUDElementHiddenState(elementNameForHiddenInHudEditorCheck) == true then
-                        return "|cFF0000- " .. elementNameOrigNow .. "|r -"
+                        --Color the hidden entry with the same color as chosen in the settings menu
+                        local hiddenHUDElementColor = HT.SV.HUDEditHiddenBorderColor
+                        return "- " .. colorizeString(hiddenHUDElementColor.r, hiddenHUDElementColor.g, hiddenHUDElementColor.b, elementNameOrigNow) .. " -"
                     end
                     return elementNameOrigNow
                 end,

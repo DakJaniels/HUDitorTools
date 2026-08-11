@@ -25,6 +25,7 @@ end
 local function GetInfoBox()
     return HE_KB.control:GetNamedChild("InfoBox")
 end
+HT.GetInfoBox = GetInfoBox
 
 local function ApplyGridSizeFromEdit()
     local row = infoBoxSection:GetNamedChild("GridSizeRow")
