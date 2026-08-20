@@ -16,7 +16,8 @@ local ColorPicker = ZO_InitializingObject:Subclass()
 
 local sharedPicker
 
-local SLOT_DEFINITIONS = {
+local SLOT_DEFINITIONS =
+{
     {
         childName = "Grid",
         slotName = HT.COLOR_SLOT_GRID,
@@ -62,17 +63,17 @@ function ColorPicker:Initialize(control)
 
     local closeButton = control:GetNamedChild("Close")
     closeButton:SetDrawLevel(INTERACTABLE_LEVEL)
-    closeButton:SetHandler("OnClicked", function()
+    closeButton:SetHandler("OnClicked", function ()
         HT.SetColorPickerVisible(false)
     end)
 
     local resetButton = control:GetNamedChild("Reset")
     resetButton:SetText("Reset")
-    resetButton:SetHandler("OnClicked", function()
+    resetButton:SetHandler("OnClicked", function ()
         self:ResetActiveSlot()
     end)
 
-    control:SetHandler("OnMoveStop", function()
+    control:SetHandler("OnMoveStop", function ()
         self:SaveAnchor()
     end)
 
@@ -104,10 +105,10 @@ function ColorPicker:InitializeSlots()
         end
         slotControl:SetHandler("OnMouseUp", OnSlotClicked)
         dyeSwatch:SetHandler("OnMouseUp", OnSlotClicked)
-        dyeSwatch:SetHandler("OnMouseEnter", function()
+        dyeSwatch:SetHandler("OnMouseEnter", function ()
             self.swatchInterpolator:ScaleUp(dyeSwatch)
         end)
-        dyeSwatch:SetHandler("OnMouseExit", function()
+        dyeSwatch:SetHandler("OnMouseExit", function ()
             if slotDefinition.slotName ~= self.activeSlotName then
                 self.swatchInterpolator:ScaleDown(dyeSwatch)
             end
@@ -124,14 +125,14 @@ function ColorPicker:InitializePickerWidgets()
     self.colorSelect = content:GetNamedChild("ColorSelect")
     self.colorSelectThumb = self.colorSelect:GetNamedChild("Thumb")
     self.colorSelect:SetColorWheelThumbTextureControl(self.colorSelectThumb)
-    self.colorSelect:SetHandler("OnColorSelected", function(_, r, g, b)
+    self.colorSelect:SetHandler("OnColorSelected", function (_, r, g, b)
         self:OnColorSet(r, g, b)
     end)
 
     self.valueSlider = content:GetNamedChild("Value")
     self.valueSlider:GetThumbTextureControl():SetDrawLayer(3)
     self.valueTexture = self.valueSlider:GetNamedChild("Texture")
-    self.valueSlider:SetHandler("OnValueChanged", function(_, value)
+    self.valueSlider:SetHandler("OnValueChanged", function (_, value)
         self:OnValueSet(1 - value)
     end)
 
@@ -141,7 +142,7 @@ function ColorPicker:InitializePickerWidgets()
     alphaThumbTexture:SetTextureRotation(ZO_HALF_PI)
     alphaThumbTexture:SetDrawLayer(3)
     self.alphaTexture = self.alphaSlider:GetNamedChild("Texture")
-    self.alphaSlider:SetHandler("OnValueChanged", function(_, value)
+    self.alphaSlider:SetHandler("OnValueChanged", function (_, value)
         self:OnAlphaSet(value)
     end)
 
@@ -157,25 +158,25 @@ function ColorPicker:InitializePickerWidgets()
 
     local spinners = content:GetNamedChild("Spinners")
     self.redSpinner = ZO_Spinner:New(spinners:GetNamedChild("Red"), 0, 255)
-    self.redSpinner:RegisterCallback("OnValueChanged", function(value)
+    self.redSpinner:RegisterCallback("OnValueChanged", function (value)
         SetColorFromSpinner(value / 255, self.greenSpinner:GetValue() / 255, self.blueSpinner:GetValue() / 255, self.alphaSpinner:GetValue() / 255)
     end)
     self.redSpinner:SetNormalColor(ZO_ColorDef:New(1, .2, .2, 1))
 
     self.greenSpinner = ZO_Spinner:New(spinners:GetNamedChild("Green"), 0, 255)
-    self.greenSpinner:RegisterCallback("OnValueChanged", function(value)
+    self.greenSpinner:RegisterCallback("OnValueChanged", function (value)
         SetColorFromSpinner(self.redSpinner:GetValue() / 255, value / 255, self.blueSpinner:GetValue() / 255, self.alphaSpinner:GetValue() / 255)
     end)
     self.greenSpinner:SetNormalColor(ZO_ColorDef:New(.2, 1, .2, 1))
 
     self.blueSpinner = ZO_Spinner:New(spinners:GetNamedChild("Blue"), 0, 255)
-    self.blueSpinner:RegisterCallback("OnValueChanged", function(value)
+    self.blueSpinner:RegisterCallback("OnValueChanged", function (value)
         SetColorFromSpinner(self.redSpinner:GetValue() / 255, self.greenSpinner:GetValue() / 255, value / 255, self.alphaSpinner:GetValue() / 255)
     end)
     self.blueSpinner:SetNormalColor(ZO_ColorDef:New(.2, .2, 1, 1))
 
     self.alphaSpinner = ZO_Spinner:New(spinners:GetNamedChild("Alpha"), 0, 255)
-    self.alphaSpinner:RegisterCallback("OnValueChanged", function(value)
+    self.alphaSpinner:RegisterCallback("OnValueChanged", function (value)
         SetColorFromSpinner(self.redSpinner:GetValue() / 255, self.greenSpinner:GetValue() / 255, self.blueSpinner:GetValue() / 255, value / 255)
     end)
 end

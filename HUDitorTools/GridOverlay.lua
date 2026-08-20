@@ -197,8 +197,8 @@ function HT.RefreshGridOverlayDebounced()
     eventManager:UnregisterForUpdate(GRID_SIZE_SLIDER_UPDATE_NAME)
     local DO_ONCE = true
     eventManager:RegisterForUpdate(GRID_SIZE_SLIDER_UPDATE_NAME, GRID_SIZE_SLIDER_DEBOUNCE_MS, function ()
-        HT.RefreshGridOverlay()
-    end, DO_ONCE)
+                                       HT.RefreshGridOverlay()
+                                   end, DO_ONCE)
 end
 
 function HT.HideGridOverlay()
