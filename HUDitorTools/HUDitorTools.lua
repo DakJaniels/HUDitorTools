@@ -28,6 +28,55 @@ local GRID_DEFAULT_COLOR =
     a = 0.25,
 }
 
+-- Colors: copy ZOS defaults once at load, before we mutate the global table
+-- Vanilla fill alphas from EsoUI/Ingame/HUD/keyboard/hudeditor_keyboard.lua:
+-- selected/unselected centerNormal = "20RRGGBB", centerHover = "50RRGGBB"
+local ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD = ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD
+local CENTER_NORMAL_ALPHA = 32 / 255
+local CENTER_HOVER_ALPHA = 80 / 255
+local defaultSelectedEdge = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected.edge:UnpackRGBA())
+local defaultSelectedCenterNormal = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected.centerNormal:UnpackRGBA())
+local defaultSelectedCenterHover = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected.centerHover:UnpackRGBA())
+local defaultUnselectedEdge = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected.edge:UnpackRGBA())
+local defaultUnselectedCenterNormal = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected.centerNormal:UnpackRGBA())
+local defaultUnselectedCenterHover = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected.centerHover:UnpackRGBA())
+local defaultUnselectedFont = ZO_ColorDef:New(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected.font:UnpackRGBA())
+local defaultSelectedHidden = ZO_ColorDef:New("FF0000")
+local defaultUnselectedHidden = ZO_ColorDef:New("F00000")
+
+ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden = ZO_ShallowTableCopy(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected)
+ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden = ZO_ShallowTableCopy(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected)
+
+local function ColorDefFromTable(colorTable)
+    return ZO_ColorDef:New(colorTable.r, colorTable.g, colorTable.b, colorTable.a)
+end
+
+local function FillColorDefFromTable(colorTable, fillAlpha)
+    return ZO_ColorDef:New(colorTable.r, colorTable.g, colorTable.b, colorTable.a * fillAlpha)
+end
+
+local function ApplyColorTableToPalette(palette, colorTable, applyFont)
+    palette.edge = ColorDefFromTable(colorTable)
+    palette.centerNormal = FillColorDefFromTable(colorTable, CENTER_NORMAL_ALPHA)
+    palette.centerHover = FillColorDefFromTable(colorTable, CENTER_HOVER_ALPHA)
+    if applyFont then
+        palette.font = ColorDefFromTable(colorTable)
+    end
+end
+
+local function ColorTableFromColorDef(colorDef)
+    local r, g, b, a = colorDef:UnpackRGBA()
+    return { r = r, g = g, b = b, a = a }
+end
+
+ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden, ColorTableFromColorDef(defaultSelectedHidden), true)
+ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden, ColorTableFromColorDef(defaultUnselectedHidden), true)
+
+HT.COLOR_SLOT_GRID = "gridColor"
+HT.COLOR_SLOT_SELECTED = "selectedEdgeColor"
+HT.COLOR_SLOT_UNSELECTED = "unselectedEdgeColor"
+HT.COLOR_SLOT_HIDDEN = "HUDEditHiddenBorderColor"
+
 --SavedVariables
 HT.Defaults     =
 {
@@ -39,7 +88,10 @@ HT.Defaults     =
 
     --HUDEditor other settings
     HUDEditContextMenu                 = false,
-    HUDEditHiddenBorderColor           = { r=1, r=0, b=0, a=1 },
+    HUDEditHiddenBorderColor           = { r = 1, g = 0, b = 0, a = 1 },
+    selectedEdgeColor                  = ColorTableFromColorDef(defaultSelectedEdge),
+    unselectedEdgeColor                = ColorTableFromColorDef(defaultUnselectedEdge),
+    showColorPicker                    = false,
     HUDEditorShowInfoBoxSettingsButton = false,
     HUDEditorAlwaysShowAllNames        = false,
     HUDEditorHideNamesShorterThan = 50,
@@ -83,16 +135,6 @@ local HUDEditorContextMenuText = GetString(SI_GAME_MENU_EDIT_HUD)
 local visibleText = GetString(SI_HUD_EDITOR_CUSTOM_OPTION_VISIBLE)
 local resetToDefaultText = GetString(SI_HUD_EDITOR_INFO_BOX_RESET_TO_DEFAULT)
 
-
---Colors
----Custom border color for the hidden state, at the HUD editor
-local ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD = ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD
-ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden = ZO_ShallowTableCopy(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected)
-ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden = ZO_ShallowTableCopy(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected)
-local defaultSelectedHidden = ZO_ColorDef:New("FF0000")
-local defaultUnselectedHidden = ZO_ColorDef:New("F00000")
-ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden.edge = defaultSelectedHidden
-ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden.edge = defaultUnselectedHidden
 
 --Libraries
 ---LibScrollableMenu
@@ -327,80 +369,86 @@ local function updateHUDEditorElementHiddenState(elementCtrl)
     end
 end
 
-local function getCustomHUDElementBorderColor(elementObject)
-    --Change the borderColor to use an e.g. red outline (defined cia the settings color picker)
-    return (elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden) or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden
+local function isHUDEditorElementUserHidden(elementObject)
+    local optionsDataOfKeyVisible = elementObject:GetCustomOptionValue("Visible")
+    if optionsDataOfKeyVisible == nil then
+        return false
+    end
+    local typeOfVisibleOption = type(optionsDataOfKeyVisible)
+    if typeOfVisibleOption == "boolean" then
+        return optionsDataOfKeyVisible == false
+    elseif typeOfVisibleOption == "number" then
+        return optionsDataOfKeyVisible == 0
+    end
+    return false
+end
+
+local function getHUDEditorElementColorPalette(elementObject)
+    if isHUDEditorElementUserHidden(elementObject) then
+        if elementObject.selected then
+            return ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden
+        end
+        return ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden
+    end
+    if elementObject.selected then
+        return ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected
+    end
+    return ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected
+end
+
+local function applyHUDEditorElementColors(elementObject, palette)
+    if palette == nil then
+        return
+    end
+    local control = elementObject.control
+    control:SetEdgeColor(palette.edge:UnpackRGBA())
+    if elementObject.mouseOver then
+        control:SetCenterColor(palette.centerHover:UnpackRGBA())
+    else
+        control:SetCenterColor(palette.centerNormal:UnpackRGBA())
+    end
+    elementObject.nameControl:SetColor(palette.font:UnpackRGBA())
 end
 
 local function updateHUDEditorElementBorderColor(elementObject)
     if elementObject == nil or elementObject.elementData == nil then return end
-    local optionsDataOfKeyVisible = elementObject:GetCustomOptionValue("Visible")
-    if optionsDataOfKeyVisible ~= nil then
-        local changeBorderColor = false
-        --default borderColors (vanilla)
-        local borderColor         = elementObject.selected and ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected or ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected
-        local typeOfVisibleOption = type(optionsDataOfKeyVisible)
-        if typeOfVisibleOption == "boolean" then
-            if optionsDataOfKeyVisible == true then
-                changeBorderColor = true
-            else
-                changeBorderColor = true
-                borderColor       = getCustomHUDElementBorderColor(elementObject)
-            end
-        elseif typeOfVisibleOption == "number" then
-            if optionsDataOfKeyVisible == 1 then
-                changeBorderColor = true
-            elseif optionsDataOfKeyVisible == 0 then
-                changeBorderColor = true
-                borderColor       = getCustomHUDElementBorderColor(elementObject)
-            end
-        end
-        if changeBorderColor == true and borderColor ~= nil then
-            elementObject.control:SetEdgeColor(borderColor.edge:UnpackRGBA())
-        end
-    end
+    -- Vanilla RefreshColors is not called from PopulateElementControls except on the selected
+    -- element, so overlays keep XML cyan (edgeColor/centerColor 02E1FF) until we paint them.
+    applyHUDEditorElementColors(elementObject, getHUDEditorElementColorPalette(elementObject))
 
-    --Check if the name should always be shown, or hidden due to the nameControl's width (textLength)
+    -- Check if the name should always be shown, or hidden due to the nameControl's width
     local settings = HT.SV
-
-    local HUDEditorAlwaysShowAllNames = settings.HUDEditorAlwaysShowAllNames
-    local HUDEditorHideNamesShorterThanEnabled = settings.HUDEditorHideNamesShorterThan > 0
     local nameControl = elementObject.nameControl
     local nameControlWidth = nameControl:GetWidth()
+    local alwaysShowAllNames = settings.HUDEditorAlwaysShowAllNames
+    local hideNamesShorterThan = settings.HUDEditorHideNamesShorterThan
+    local useCustomNameSettings = settings.HUDEditorShowInfoBoxSettingsButton == true
+    local hideDueToWidth
+    if useCustomNameSettings then
+        hideDueToWidth = hideNamesShorterThan > 0 and nameControlWidth <= hideNamesShorterThan
+    else
+        hideDueToWidth = nameControlWidth <= 50
+    end
 
-    local hideElementName = not HUDEditorAlwaysShowAllNames
-    local hideElementNameDueToWidth = (HUDEditorHideNamesShorterThanEnabled and nameControlWidth <= settings.HUDEditorHideNamesShorterThan) or nameControlWidth <= 50
-    --Hide element names shortet than n pixel? -> Custom logic
-    if settings.HUDEditorShowInfoBoxSettingsButton == true and HUDEditorHideNamesShorterThanEnabled == true then
-        --Custom settings logic:
-        ---ForceShow if selected or on mouseOver
+    local hideElementName
+    if useCustomNameSettings then
         if elementObject.mouseOver or elementObject.selected then
+            -- Keep the active/hovered name readable while editing
             hideElementName = false
+        elseif alwaysShowAllNames then
+            hideElementName = hideDueToWidth
         else
-            --Always show all names
-            if HUDEditorAlwaysShowAllNames == true then
-                --Respect custom width
-                hideElementName = hideElementNameDueToWidth
-            else
-                --Respect custom width
-                hideElementName = hideElementNameDueToWidth
-            end
+            hideElementName = true
         end
     else
-        --Default ZOs logic: Either show all, or hide all < 50 pixel
-        local forceNameHidden = false
-        if not HUDEditorAlwaysShowAllNames then
-            forceNameHidden = hideElementNameDueToWidth
-            if elementObject.mouseOver then
-                hideElementName = forceNameHidden
-            else
-                hideElementName = forceNameHidden or not elementObject.selected
-            end
-        else
+        if alwaysShowAllNames then
             hideElementName = false
+        elseif elementObject.mouseOver then
+            hideElementName = hideDueToWidth
+        else
+            hideElementName = hideDueToWidth or not elementObject.selected
         end
     end
-    --d("[HT]'" .. tostring(nameControl:GetText()) .. "' nameControlWidth: " .. tostring(nameControlWidth) .. " (" ..tostring(hideElementNameDueToWidth) .."), mouseOver: " .. tostring(elementObject.mouseOver) .. ", selected: " ..tostring(elementObject.selected) .. ", hideElementName: " ..tostring(hideElementName))
     nameControl:SetHidden(hideElementName)
 end
 
@@ -593,7 +641,7 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
                 HE_KB:RebuildAllElements()
                 rebuildOfHUDEditorNeeded = false
             end,
-            function() return HT.SV.HUDEditorAlwaysShowAllNames end, { tooltip = "Always show the element names, not only if you mouse-over or select them.\nThis setting will depent on the \'max length\' slider value."}
+            function() return HT.SV.HUDEditorAlwaysShowAllNames end, { tooltip = "Always show the element names, not only if you mouse-over or select them.\nThis setting will depend on the \'Hide element <= length\' slider value."}
     )
     local sliderDataHideNamesShortherThan = {
         hideLabel = false,							-- optional boolean or function returning a boolean Hide the label at the row
@@ -680,6 +728,45 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
                 enabled = function() return HT.SV.showGrid end
             }
     )
+    addCustomScrollableMenuCheckbox("Show color picker",
+            function(comboBox, itemName, item, checked, data)
+                HT.SetColorPickerVisible(checked)
+                refreshCustomScrollableMenu(moc(), LSM_UPDATE_MODE_BOTH, comboBox)
+            end,
+            function() return HT.SV.showColorPicker end,
+            { tooltip = "Show a live color picker in the HUD editor for grid and element colors." }
+    )
+    local colorSlotSubmenu = {
+        {
+            name = "Grid",
+            callback = function()
+                HT.ShowColorPickerForSlot(HT.COLOR_SLOT_GRID)
+            end,
+            entryType = LSM_ENTRY_TYPE_NORMAL,
+        },
+        {
+            name = "Selected",
+            callback = function()
+                HT.ShowColorPickerForSlot(HT.COLOR_SLOT_SELECTED)
+            end,
+            entryType = LSM_ENTRY_TYPE_NORMAL,
+        },
+        {
+            name = "Unselected",
+            callback = function()
+                HT.ShowColorPickerForSlot(HT.COLOR_SLOT_UNSELECTED)
+            end,
+            entryType = LSM_ENTRY_TYPE_NORMAL,
+        },
+        {
+            name = "Hidden",
+            callback = function()
+                HT.ShowColorPickerForSlot(HT.COLOR_SLOT_HIDDEN)
+            end,
+            entryType = LSM_ENTRY_TYPE_NORMAL,
+        },
+    }
+    addCustomScrollableSubMenuEntry("Colors", colorSlotSubmenu)
     showCustomScrollableMenu(nil, { minDropdownWidth = 325 }, specialCallbackData)
 end
 
@@ -950,19 +1037,115 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 --- HUD Editor API functions (called from settings e.g.)
 ------------------------------------------------------------------------------------------------------------------------
+local function CopyColorTableValues(targetColor, sourceColor)
+    targetColor.r = sourceColor.r
+    targetColor.g = sourceColor.g
+    targetColor.b = sourceColor.b
+    targetColor.a = sourceColor.a
+end
+
+local function CoerceSavedColorTable(colorTable, defaultColor)
+    if type(colorTable) ~= "table" then
+        return ColorTableFromColorDef(ZO_ColorDef:New(defaultColor.r, defaultColor.g, defaultColor.b, defaultColor.a))
+    end
+    -- Old default was { r=1, r=0, b=0, a=1 } so g is nil and the last r won
+    if colorTable.g == nil then
+        CopyColorTableValues(colorTable, defaultColor)
+        return colorTable
+    end
+    colorTable.r = tonumber(colorTable.r) or defaultColor.r
+    colorTable.g = tonumber(colorTable.g) or defaultColor.g
+    colorTable.b = tonumber(colorTable.b) or defaultColor.b
+    colorTable.a = tonumber(colorTable.a)
+    if colorTable.a == nil then
+        colorTable.a = 1
+    end
+    return colorTable
+end
+
+function HT.HUDUI_RefreshEditorElementColors()
+    if not HE_KB or not HE_KB.elementControls then
+        return
+    end
+    for _, element in ipairs(HE_KB.elementControls) do
+        local elementObject = element.object
+        if elementObject then
+            elementObject:RefreshColors()
+        end
+    end
+end
+
 function HT.HUDUI_UpdateColor(svValueName, resetToDefault)
-    if svValueName == "HUDEditHiddenBorderColor" then
+    if svValueName == HT.COLOR_SLOT_HIDDEN then
         local borderColorHiddenHUDElements = HT.SV[svValueName]
         if borderColorHiddenHUDElements ~= nil then
             if resetToDefault == true then
-                ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden.edge = defaultSelectedHidden
-                ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden.edge = defaultUnselectedHidden
+                local hiddenColorTable = ColorTableFromColorDef(defaultSelectedHidden)
+                ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden, hiddenColorTable, true)
+                ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden, ColorTableFromColorDef(defaultUnselectedHidden), true)
             else
-                ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden.edge = ZO_ColorDef:New(borderColorHiddenHUDElements.r, borderColorHiddenHUDElements.g, borderColorHiddenHUDElements.b, borderColorHiddenHUDElements.a)
-                ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden.edge = ZO_ColorDef:New(borderColorHiddenHUDElements.r, borderColorHiddenHUDElements.g, borderColorHiddenHUDElements.b, borderColorHiddenHUDElements.a)
+                ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selectedHidden, borderColorHiddenHUDElements, true)
+                ApplyColorTableToPalette(ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselectedHidden, borderColorHiddenHUDElements, true)
+            end
+            HT.HUDUI_RefreshEditorElementColors()
+        end
+    elseif svValueName == HT.COLOR_SLOT_SELECTED then
+        local selectedPalette = ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.selected
+        if resetToDefault == true then
+            selectedPalette.edge = defaultSelectedEdge
+            selectedPalette.centerNormal = defaultSelectedCenterNormal
+            selectedPalette.centerHover = defaultSelectedCenterHover
+        else
+            local selectedEdgeColor = HT.SV[svValueName]
+            if selectedEdgeColor ~= nil then
+                ApplyColorTableToPalette(selectedPalette, selectedEdgeColor, false)
             end
         end
+        HT.HUDUI_RefreshEditorElementColors()
+    elseif svValueName == HT.COLOR_SLOT_UNSELECTED then
+        local unselectedPalette = ZO_HUD_EDITOR_ELEMENT_COLORS_KEYBOARD.unselected
+        if resetToDefault == true then
+            unselectedPalette.edge = defaultUnselectedEdge
+            unselectedPalette.centerNormal = defaultUnselectedCenterNormal
+            unselectedPalette.centerHover = defaultUnselectedCenterHover
+            unselectedPalette.font = defaultUnselectedFont
+        else
+            local unselectedEdgeColor = HT.SV[svValueName]
+            if unselectedEdgeColor ~= nil then
+                ApplyColorTableToPalette(unselectedPalette, unselectedEdgeColor, true)
+            end
+        end
+        HT.HUDUI_RefreshEditorElementColors()
+    elseif svValueName == HT.COLOR_SLOT_GRID then
+        if resetToDefault == true then
+            CopyColorTableValues(HT.SV.gridColor, HT.Defaults.gridColor)
+        end
+        HT.RefreshGridOverlayColors()
     end
+end
+
+function HT.ResetSavedColor(svValueName)
+    local savedColor = HT.SV[svValueName]
+    local defaultColor = HT.Defaults[svValueName]
+    if savedColor == nil or defaultColor == nil then
+        return
+    end
+    CopyColorTableValues(savedColor, defaultColor)
+    HT.HUDUI_UpdateColor(svValueName, true)
+end
+
+function HT.HUDUI_ApplySavedColors()
+    local defaults = HT.Defaults
+    local savedVariables = HT.SV
+    savedVariables.HUDEditHiddenBorderColor = CoerceSavedColorTable(savedVariables.HUDEditHiddenBorderColor, defaults.HUDEditHiddenBorderColor)
+    savedVariables.gridColor = CoerceSavedColorTable(savedVariables.gridColor, defaults.gridColor)
+    savedVariables.selectedEdgeColor = CoerceSavedColorTable(savedVariables.selectedEdgeColor, defaults.selectedEdgeColor)
+    savedVariables.unselectedEdgeColor = CoerceSavedColorTable(savedVariables.unselectedEdgeColor, defaults.unselectedEdgeColor)
+
+    HT.HUDUI_UpdateColor(HT.COLOR_SLOT_HIDDEN)
+    HT.HUDUI_UpdateColor(HT.COLOR_SLOT_SELECTED)
+    HT.HUDUI_UpdateColor(HT.COLOR_SLOT_UNSELECTED)
+    HT.HUDUI_UpdateColor(HT.COLOR_SLOT_GRID)
 end
 
 --Lazy check if hooks were done already, and skip, or hook now if settings are enabled
@@ -982,9 +1165,11 @@ local function OnEditorSceneStateChange(oldState, newState)
             InstallEditorHooks(true)
         end
         HT.RefreshGridOverlay()
+        HT.RefreshColorPickerVisibility()
     elseif newState == SCENE_HIDING or newState == SCENE_HIDDEN then
         editorShowing = false
         HT.HideGridOverlay()
+        HT.RefreshColorPickerVisibility()
     end
 end
 
@@ -1010,12 +1195,14 @@ local function OnAddOnLoaded(_, addonName)
     local worldName = nil --GetWorldName() no need to split between servers, maybe even "AllAccountsTheSame" as displayName would be a good idea?
     local displayName = GetDisplayName()
     HT.SV = ZO_SavedVars:NewAccountWide("HUDitorToolsSV", 1, worldName, HT.Defaults, nil, displayName)
+    HT.HUDUI_ApplySavedColors()
 
     --Create LibAddonMenu-2.0 settings panel
     HT.buildSettingsMenu()
 
     --Create controls etc.
     HT.InstallInfoBoxControls()
+    HT.InstallColorPicker()
 
     --Scenes and hooks
     SM:GetScene("hud_editor_keyboard"):RegisterCallback("StateChange", OnEditorSceneStateChange)

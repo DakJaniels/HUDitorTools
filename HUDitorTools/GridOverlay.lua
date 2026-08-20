@@ -120,6 +120,17 @@ function Overlay:UpdateLines(gridSize)
     self:ReleaseUnused(self.horizontalPool, horizontalLineCount)
 end
 
+function Overlay:ApplyColorToActiveLines()
+    local function restylePool(objectPool)
+        local activeObjects = objectPool:GetActiveObjects()
+        for _, line in pairs(activeObjects) do
+            ApplyLineStyle(line)
+        end
+    end
+    restylePool(self.verticalPool)
+    restylePool(self.horizontalPool)
+end
+
 function Overlay:Hide()
     self:ReleaseAll()
     self:RemoveFragmentFromEditorScene()
@@ -163,4 +174,11 @@ end
 
 function HT.HideGridOverlay()
     GetOverlay():Hide()
+end
+
+function HT.RefreshGridOverlayColors()
+    if not sharedOverlay then
+        return
+    end
+    sharedOverlay:ApplyColorToActiveLines()
 end
