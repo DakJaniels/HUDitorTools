@@ -722,7 +722,7 @@ local function getHUDEditorInfoBoxSettingsContextMenu()
     addCustomScrollableMenuSlider("Grid size",
             function(comboBox, slider, value)
                 HT.SV.gridSize = value
-                HT.RefreshGridOverlay()
+                HT.RefreshGridOverlayDebounced()
             end, sliderDataGridSize, {
                 tooltip = "\nThe grid\'s size",
                 enabled = function() return HT.SV.showGrid end
