@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.3.1 - Dakjaniels
+
+### 1.3.1 Fixed
+
+- Player health, magicka, and stamina bars stay at their normal width. Heals, buffs, and raid max-stat changes no longer grow or shrink the bars, play the size animation, or add combat overlays.
+
+## 1.3.0 - Baertram
+
+### 1.3.0 Fixed
+
+- Translations used everywhere on the UI now
+- Updated German translations
+- HUD editor info box's grid-snap feature only selectable if grid is enabled
+- Context menu button entries for layouts not showing broken submenu entries
+
+### 1.3.0 New
+
+- Delete layout button at LAM settings panel
+
 ## 1.2.0 - Dakjaniels
 
 - Per-element scale and font on the HUD Editor info box (face, size, and outline). Scale is any positive percent and changes the live control only, not the editor preview. Saved fonts reapply after reload.
