@@ -3,7 +3,10 @@
 -- Scale: Control:SetScale. Font: LabelControl:SetFont / GetFont.
 -- Reapply after ZO_HUDManager:PropagateSettings (hudmanager.lua) and when
 -- the hud_editor_keyboard scene hides. SetScale is only on the HUD control.
--- The editor box stays the unscaled hudElementRef size from RefreshAnchors.
+-- RefreshAnchors copies hudElementRef:GetDimensions(). That value includes
+-- the control scale, same as GetHeight in ZO_Scroll_UpdateScrollBar. Divide
+-- by the HUD control GetScale once. The anchor from
+-- ZO_GetControlPointOffsetFromGuiRoot is left as RefreshAnchors set it.
 -- -----------------------------------------------------------------------------
 local HT = HUDitorTools
 
@@ -222,13 +225,12 @@ local function VisitLabels(control, onLabel)
         local currentControl = pendingControls[pendingCount]
         pendingControls[pendingCount] = nil
         pendingCount = pendingCount - 1
-        if currentControl and not visitedControls[currentControl] then
+        if not visitedControls[currentControl] then
             visitedControls[currentControl] = true
             visitedCount = visitedCount + 1
-            local isLabel = currentControl.GetType and currentControl:GetType() == CT_LABEL and currentControl.SetFont
-            if isLabel then
+            if currentControl:GetType() == CT_LABEL then
                 onLabel(currentControl)
-            elseif currentControl.GetNumChildren then
+            else
                 local childCount = currentControl:GetNumChildren()
                 if childCount > MAX_FONT_LABEL_VISITS then
                     childCount = MAX_FONT_LABEL_VISITS
@@ -246,7 +248,7 @@ local function VisitLabels(control, onLabel)
 end
 
 local function SetLabelFont(label, fontString)
-    if not label.huditorToolsOriginalFont and label.GetFont then
+    if not label.huditorToolsOriginalFont then
         label.huditorToolsOriginalFont = label:GetFont()
     end
     label:SetFont(fontString)
@@ -256,10 +258,7 @@ local function ApplyFontStringToLabels(control, fontString, saveKey)
     local knownLabels = appliedFontLabelsBySaveKey[saveKey]
     if knownLabels and #knownLabels > 0 then
         for labelIndex = 1, #knownLabels do
-            local label = knownLabels[labelIndex]
-            if label and label.SetFont then
-                label:SetFont(fontString)
-            end
+            knownLabels[labelIndex]:SetFont(fontString)
         end
         return
     end
@@ -278,8 +277,8 @@ local function RestoreFontStringOnLabels(control, saveKey)
     if knownLabels and #knownLabels > 0 then
         for labelIndex = 1, #knownLabels do
             local label = knownLabels[labelIndex]
-            local originalFont = label and label.huditorToolsOriginalFont
-            if originalFont and label.SetFont then
+            local originalFont = label.huditorToolsOriginalFont
+            if originalFont then
                 label:SetFont(originalFont)
             end
         end
@@ -306,11 +305,8 @@ local function InstallShownHook(control, element)
 end
 
 function HT.ApplyElementAppearance(element)
-    if not element or not element.GetControl or not element.GetSaveKey then
-        return
-    end
     local control = element:GetControl()
-    if not control or controlsApplyingAppearance[control] then
+    if controlsApplyingAppearance[control] then
         return
     end
     controlsApplyingAppearance[control] = true
@@ -326,7 +322,7 @@ function HT.ApplyElementAppearance(element)
         fontSize = ReadFontSize(row.fontSize)
         fontOutline = row.fontOutline or fontOutline
     end
-    local currentScale = control:GetScale() or 1
+    local currentScale = control:GetScale()
     if zo_abs(currentScale - scale) >= 0.001 then
         control:SetScale(scale)
     end
@@ -347,13 +343,11 @@ function HT.ApplyElementAppearance(element)
 end
 
 function HT.ApplyAllElementAppearances()
-    if applyingAllAppearances or not HT.SV or not HUD_MANAGER then
+    if applyingAllAppearances or not HT.SV then
         return
     end
     applyingAllAppearances = true
-    if HT.ApplyResourceBarGroup then
-        HT.ApplyResourceBarGroup()
-    end
+    HT.ApplyResourceBarGroup()
     local modeMap = HT.GetAppearanceMap()
     for saveKey, row in pairs(modeMap) do
         if not HT.IsAppearanceRowDefault(row) then
@@ -375,7 +369,7 @@ function HT.ApplyAllElementAppearances()
 end
 
 function HT.StepSelectedElementScale(editorElement, direction)
-    local elementData = editorElement and editorElement.GetElementData and editorElement:GetElementData()
+    local elementData = editorElement:GetElementData()
     if not elementData then
         return
     end
@@ -393,15 +387,9 @@ function HT.StepSelectedElementScale(editorElement, direction)
         fontOutline = row.fontOutline,
     })
     HT.ApplyElementAppearance(elementData)
-    if editorElement.RefreshAnchors then
-        editorElement:RefreshAnchors()
-    end
-    if HT.RefreshAppearanceInfoBox then
-        HT.RefreshAppearanceInfoBox()
-    end
-    if HT.RefreshLayoutInfoBoxSection then
-        HT.RefreshLayoutInfoBoxSection()
-    end
+    editorElement:RefreshAnchors()
+    HT.RefreshAppearanceInfoBox()
+    HT.RefreshLayoutInfoBoxSection()
 end
 
 local function OnEditorElementMouseWheel(editorControl, delta)
@@ -417,9 +405,6 @@ local function OnEditorElementMouseWheel(editorControl, delta)
 end
 
 function HT.InstallElementScaleMouseWheel(editor)
-    if not editor or not editor.elementControls then
-        return
-    end
     for _, elementControl in ipairs(editor.elementControls) do
         if not elementControl.huditorToolsScaleWheelInstalled then
             elementControl.huditorToolsScaleWheelInstalled = true
@@ -430,6 +415,17 @@ function HT.InstallElementScaleMouseWheel(editor)
     end
 end
 
+local function ApplyEditorSelectorLayoutSize(editorElement)
+    local hudControl = editorElement:GetElementData():GetControl()
+    local scale = hudControl:GetScale()
+    if zo_abs(scale - 1) < 0.001 then
+        return
+    end
+    local editorControl = editorElement:GetControl()
+    local width, height = editorControl:GetDimensions()
+    editorControl:SetDimensions(width / scale, height / scale)
+end
+
 function HT.InstallElementAppearanceEditorHooks()
     if editorScaleHooksInstalled then
         return
@@ -437,6 +433,9 @@ function HT.InstallElementAppearanceEditorHooks()
     editorScaleHooksInstalled = true
     SecurePostHook(ZO_HUDEditor_Keyboard, "PopulateElementControls", function (editor)
         HT.InstallElementScaleMouseWheel(editor)
+    end)
+    SecurePostHook(ZO_HUDEditorElement_Keyboard, "RefreshAnchors", function (editorElement)
+        ApplyEditorSelectorLayoutSize(editorElement)
     end)
 end
 
@@ -461,11 +460,9 @@ end
 function HT.InitializeElementAppearance()
     GetAppearanceRoot()
     HT.InstallElementAppearanceEditorHooks()
-    if HUD_MANAGER and HUD_MANAGER.RegisterCallback then
-        HUD_MANAGER:RegisterCallback("PropagateSettings", function ()
-            HT.ApplyAllElementAppearances()
-        end)
-    end
+    HUD_MANAGER:RegisterCallback("PropagateSettings", function ()
+        HT.ApplyAllElementAppearances()
+    end)
     HT.ApplyAllElementAppearances()
     GetEventManager():RegisterForEvent(HT.eventName .. "_Appearance", EVENT_PLAYER_ACTIVATED, function ()
         zo_callLater(HT.ApplyAllElementAppearances, 0)

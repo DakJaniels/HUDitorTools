@@ -5,6 +5,7 @@
 ### 1.3.1 Fixed
 
 - Player health, magicka, and stamina bars stay at their normal width. Heals, buffs, and raid max-stat changes no longer grow or shrink the bars, play the size animation, or add combat overlays.
+- The HUD editor selection box stays at the element's layout size. Changing an element's scale no longer grows or shrinks the box.
 
 ## 1.3.0 - Baertram
 
