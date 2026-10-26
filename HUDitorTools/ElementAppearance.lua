@@ -44,6 +44,7 @@ local shownHookInstalled = {}
 
 -- Labels already created on this element. Not a walk of every HUD control.
 local MAX_FONT_LABEL_VISITS = 80
+local TRACKERS_SAVE_KEY = "ZO_HUDTrackers"
 
 local function ReadScale(scale)
     scale = tonumber(scale)
@@ -173,9 +174,9 @@ function HT.BuildAppearanceFontString(fontFace, fontSize, fontOutline)
         return nil
     end
     fontSize = ReadFontSize(fontSize)
-    if LibMediaProvider and LibMediaProvider.Fetch then
+    if LibMediaProvider then
         local fontPath = LibMediaProvider:Fetch("font", fontFace)
-        if fontPath and fontPath ~= "" then
+        if fontPath then
             local outline = fontOutline
             if outline == nil or outline == "" then
                 outline = HT.APPEARANCE_FONT_OUTLINE_WITH_MEDIA
@@ -194,9 +195,9 @@ function HT.GetFontFaceChoices()
     local choiceLabels = {}
     choices[1] = ""
     choiceLabels[1] = GetString(SI_HUDITORTOOLS_APPEARANCE_FONT_DEFAULT)
-    if LibMediaProvider and LibMediaProvider.List then
+    if LibMediaProvider then
         local mediaNames = LibMediaProvider:List("font")
-        if type(mediaNames) == "table" then
+        if mediaNames then
             local sortedNames = {}
             for _, mediaName in ipairs(mediaNames) do
                 sortedNames[#sortedNames + 1] = mediaName
@@ -225,7 +226,7 @@ local function VisitLabels(control, onLabel)
         local currentControl = pendingControls[pendingCount]
         pendingControls[pendingCount] = nil
         pendingCount = pendingCount - 1
-        if not visitedControls[currentControl] then
+        if currentControl and not visitedControls[currentControl] then
             visitedControls[currentControl] = true
             visitedCount = visitedCount + 1
             if currentControl:GetType() == CT_LABEL then
@@ -239,8 +240,11 @@ local function VisitLabels(control, onLabel)
                     if visitedCount + pendingCount >= MAX_FONT_LABEL_VISITS then
                         break
                     end
-                    pendingCount = pendingCount + 1
-                    pendingControls[pendingCount] = currentControl:GetChild(childIndex)
+                    local childControl = currentControl:GetChild(childIndex)
+                    if childControl then
+                        pendingCount = pendingCount + 1
+                        pendingControls[pendingCount] = childControl
+                    end
                 end
             end
         end
@@ -254,11 +258,96 @@ local function SetLabelFont(label, fontString)
     label:SetFont(fontString)
 end
 
+local function FontStringFromAppearanceRow(row)
+    if type(row) ~= "table" then
+        return nil
+    end
+    local fontFace = row.fontFace or ""
+    if fontFace == "" then
+        return nil
+    end
+    return HT.BuildAppearanceFontString(fontFace, ReadFontSize(row.fontSize), row.fontOutline or HT.GetDefaultFontOutline())
+end
+
+local function TrackerHasOwnFont(trackerControl)
+    return FontStringFromAppearanceRow(HT.GetAppearanceRow(trackerControl:GetName())) ~= nil
+end
+
+-- Combined trackers live under the scroll child. SeparatedTrackers reparents
+-- that same control onto ZO_HUDTrackers (HUDTracker_Manager:RefreshLayout).
+local function ApplyFontToRegisteredTrackers(fontString)
+    for _, trackerData in ipairs(HUD_TRACKER_MANAGER.trackers) do
+        if not TrackerHasOwnFont(trackerData.control) then
+            VisitLabels(trackerData.control, function (label)
+                SetLabelFont(label, fontString)
+            end)
+        end
+    end
+end
+
+local function RestoreFontOnRegisteredTrackers()
+    for _, trackerData in ipairs(HUD_TRACKER_MANAGER.trackers) do
+        if not TrackerHasOwnFont(trackerData.control) then
+            VisitLabels(trackerData.control, function (label)
+                local originalFont = label.huditorToolsOriginalFont
+                if originalFont then
+                    label:SetFont(originalFont)
+                end
+            end)
+        end
+    end
+end
+
+-- Quest lines take FONT_HEADER, FONT_GENERAL, and FONT_SUBCATEGORY when the
+-- header, condition, and step pools acquire them (QuestTracker.lua).
+local function FontStringForTracker(trackerOwner)
+    local fontString = FontStringFromAppearanceRow(HT.GetAppearanceRow(trackerOwner.control:GetName()))
+    if not fontString and not trackerOwner:IsDetached() then
+        fontString = FontStringFromAppearanceRow(HT.GetAppearanceRow(TRACKERS_SAVE_KEY))
+    end
+    return fontString
+end
+
+local function ReapplyFontOnTracker(trackerOwner)
+    local fontString = FontStringForTracker(trackerOwner)
+    if not fontString then
+        return
+    end
+    VisitLabels(trackerOwner.control, function (label)
+        SetLabelFont(label, fontString)
+    end)
+end
+
+local trackerHeaderFontHookInstalled = false
+
+local function InstallTrackerPlatformStyleHook()
+    if trackerHeaderFontHookInstalled then
+        return
+    end
+    trackerHeaderFontHookInstalled = true
+    SecurePostHook(ZO_HUDTracker_Base, "ApplyPlatformStyle", function (trackerOwner)
+        ReapplyFontOnTracker(trackerOwner)
+    end)
+    -- ZO_Tracker:ApplyPlatformStyle sets the stock quest fonts after the base call.
+    SecurePostHook(ZO_Tracker, "ApplyPlatformStyle", function (trackerOwner)
+        ReapplyFontOnTracker(trackerOwner)
+    end)
+    SecurePostHook(ZO_Tracker, "AddQuest", function (trackerOwner)
+        ReapplyFontOnTracker(trackerOwner)
+    end)
+    SecurePostHook(ZO_Tracker, "RebuildConditions", function (trackerOwner)
+        ReapplyFontOnTracker(trackerOwner)
+    end)
+end
+
 local function ApplyFontStringToLabels(control, fontString, saveKey)
     local knownLabels = appliedFontLabelsBySaveKey[saveKey]
     if knownLabels and #knownLabels > 0 then
         for labelIndex = 1, #knownLabels do
             knownLabels[labelIndex]:SetFont(fontString)
+        end
+        if saveKey == TRACKERS_SAVE_KEY then
+            ApplyFontToRegisteredTrackers(fontString)
         end
         return
     end
@@ -267,6 +356,9 @@ local function ApplyFontStringToLabels(control, fontString, saveKey)
         SetLabelFont(label, fontString)
         foundLabels[#foundLabels + 1] = label
     end)
+    if saveKey == TRACKERS_SAVE_KEY then
+        ApplyFontToRegisteredTrackers(fontString)
+    end
     if #foundLabels > 0 then
         appliedFontLabelsBySaveKey[saveKey] = foundLabels
     end
@@ -283,6 +375,9 @@ local function RestoreFontStringOnLabels(control, saveKey)
             end
         end
         appliedFontLabelsBySaveKey[saveKey] = nil
+        if saveKey == TRACKERS_SAVE_KEY then
+            RestoreFontOnRegisteredTrackers()
+        end
         return
     end
     VisitLabels(control, function (label)
@@ -291,6 +386,9 @@ local function RestoreFontStringOnLabels(control, saveKey)
             label:SetFont(originalFont)
         end
     end)
+    if saveKey == TRACKERS_SAVE_KEY then
+        RestoreFontOnRegisteredTrackers()
+    end
 end
 
 local function InstallShownHook(control, element)
@@ -343,7 +441,7 @@ function HT.ApplyElementAppearance(element)
 end
 
 function HT.ApplyAllElementAppearances()
-    if applyingAllAppearances or not HT.SV then
+    if applyingAllAppearances then
         return
     end
     applyingAllAppearances = true
@@ -394,7 +492,7 @@ end
 
 local function OnEditorElementMouseWheel(editorControl, delta)
     local editorElement = editorControl.object
-    if not editorElement or HUD_EDITOR_KEYBOARD:GetSelectedElement() ~= editorElement then
+    if HUD_EDITOR_KEYBOARD:GetSelectedElement() ~= editorElement then
         return
     end
     local direction = 1
@@ -460,6 +558,7 @@ end
 function HT.InitializeElementAppearance()
     GetAppearanceRoot()
     HT.InstallElementAppearanceEditorHooks()
+    InstallTrackerPlatformStyleHook()
     HUD_MANAGER:RegisterCallback("PropagateSettings", function ()
         HT.ApplyAllElementAppearances()
     end)
