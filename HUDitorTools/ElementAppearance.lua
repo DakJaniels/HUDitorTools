@@ -9,6 +9,7 @@
 -- ZO_GetControlPointOffsetFromGuiRoot is left as RefreshAnchors set it.
 -- -----------------------------------------------------------------------------
 local HT = HUDitorTools
+local eventManager = GetEventManager()
 
 HT.APPEARANCE_SCALE_STEP = 0.01
 HT.APPEARANCE_FONT_SIZE_DEFAULT = 18
@@ -41,6 +42,22 @@ local saveKeysWithFontApplied = {}
 local appliedFontLabelsBySaveKey = {}
 local controlsApplyingAppearance = {}
 local shownHookInstalled = {}
+local styledResourceNumberLabels = {}
+local resourceNumbersWidthHookInstalled = false
+local barFontCanvasResizeInstalled = false
+
+-- GetStringWidth is pixels. SetWidth and anchor offsets are UI units
+-- (LuiExtended/src/Functions.lua 237-250). "0ui" stays put when custom UI scale changes.
+local FONT_OUTLINE_STYLE =
+{
+    ["none"] = FONT_STYLE_NORMAL,
+    ["outline"] = FONT_STYLE_OUTLINE,
+    ["thin-outline"] = FONT_STYLE_OUTLINE,
+    ["thick-outline"] = FONT_STYLE_OUTLINE_THICK,
+    ["shadow"] = FONT_STYLE_SHADOW,
+    ["soft-shadow-thin"] = FONT_STYLE_SOFT_SHADOW_THIN,
+    ["soft-shadow-thick"] = FONT_STYLE_SOFT_SHADOW_THICK,
+}
 
 -- Labels already created on this element. Not a walk of every HUD control.
 local MAX_FONT_LABEL_VISITS = 80
@@ -169,25 +186,110 @@ function HT.SetAppearanceRow(saveKey, row, inputModeKey)
     }
 end
 
+--- @param layoutValue number
+--- @return string
+local function FormatUiLayoutMeasurement(layoutValue)
+    return string.format("%dui", zo_round(layoutValue))
+end
+
+--- @param label LabelControl
+--- @param text string|nil
+--- @return number
+local function GetLabelStringWidthUI(label, text)
+    if text == nil or text == "" then
+        return 0
+    end
+    return label:GetStringWidth(text) / GetUIGlobalScale()
+end
+
+--- @param label LabelControl
+--- @return boolean
+local function IsResourceNumbersLabel(label)
+    return string.find(label:GetName(), "ResourceNumbers", 1, true) ~= nil
+end
+
+--- ZO_PlayerAttributeBar is local (PlayerAttributeBars.lua 132). New() stores each
+--- bar on PLAYER_ATTRIBUTE_BARS.bars (lines 489-545, assigned at 899).
+local function OnResourceNumbersUpdated(attributeBar)
+    local label = attributeBar.control.resourceNumbersLabel
+    if not label or not styledResourceNumberLabels[label] then
+        return
+    end
+    local textWidth = GetLabelStringWidthUI(label, label:GetText())
+    if textWidth > 0 then
+        label:SetWidth(textWidth)
+    end
+end
+
+local function InstallResourceNumbersWidthHook()
+    if resourceNumbersWidthHookInstalled then
+        return
+    end
+    resourceNumbersWidthHookInstalled = true
+    for _, attributeBar in ipairs(PLAYER_ATTRIBUTE_BARS.bars) do
+        SecurePostHook(attributeBar, "UpdateResourceNumbersLabel", OnResourceNumbersUpdated)
+    end
+end
+
+--- ResourceNumbers is CENTER in PlayerAttributeBarTemplates.xml 10-14.
+--- Width is UI units so the glyphs stay in the middle of the bar.
+--- @param label LabelControl
+local function CenterResourceNumbersLabel(label)
+    label:SetHorizontalAlignment(TEXT_ALIGN_CENTER)
+    label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
+    local parentControl = label:GetParent()
+    label:ClearAnchors()
+    label:SetAnchor(CENTER, parentControl, CENTER, FormatUiLayoutMeasurement(0), FormatUiLayoutMeasurement(0))
+    local textWidth = GetLabelStringWidthUI(label, label:GetText())
+    if textWidth > 0 then
+        label:SetWidth(textWidth)
+    end
+    styledResourceNumberLabels[label] = true
+end
+
+local function RemeasureStyledResourceNumberLabels()
+    for label in pairs(styledResourceNumberLabels) do
+        local textWidth = GetLabelStringWidthUI(label, label:GetText())
+        if textWidth > 0 then
+            label:SetWidth(textWidth)
+        end
+    end
+end
+
+local function InstallBarFontCanvasResize()
+    if barFontCanvasResizeInstalled then
+        return
+    end
+    barFontCanvasResizeInstalled = true
+    -- EVENT_ALL_GUI_SCREENS_RESIZED is the finished canvas (Functions.lua 285-288).
+    eventManager:RegisterForEvent(HT.eventName .. "_BarFontCanvas", EVENT_ALL_GUI_SCREENS_RESIZED, RemeasureStyledResourceNumberLabels)
+end
+
 function HT.BuildAppearanceFontString(fontFace, fontSize, fontOutline)
     if fontFace == nil or fontFace == "" then
         return nil
     end
     fontSize = ReadFontSize(fontSize)
-    if LibMediaProvider then
+    local faceName = fontFace
+    if LibMediaProvider and not string.find(fontFace, "$(", 1, true) then
         local fontPath = LibMediaProvider:Fetch("font", fontFace)
-        if fontPath then
-            local outline = fontOutline
-            if outline == nil or outline == "" then
-                outline = HT.APPEARANCE_FONT_OUTLINE_WITH_MEDIA
-            end
-            return string.format("%s|%d|%s", fontPath, fontSize, outline)
+        if not fontPath then
+            return nil
+        end
+        faceName = fontPath
+    elseif not string.find(fontFace, "$(", 1, true) then
+        return nil
+    end
+    local fontStyle = FONT_OUTLINE_STYLE[fontOutline]
+    if fontStyle == nil then
+        if string.find(fontFace, "$(", 1, true) then
+            fontStyle = FONT_STYLE_SOFT_SHADOW_THIN
+        else
+            fontStyle = FONT_STYLE_SOFT_SHADOW_THICK
         end
     end
-    if string.find(fontFace, "$(", 1, true) then
-        return string.format("%s|%d|%s", fontFace, fontSize, HT.APPEARANCE_FONT_OUTLINE_GAME)
-    end
-    return nil
+    -- globalapi.lua 766-772. Size is the slider value.
+    return ZO_CreateFontString(faceName, fontSize, fontStyle)
 end
 
 function HT.GetFontFaceChoices()
@@ -256,6 +358,9 @@ local function SetLabelFont(label, fontString)
         label.huditorToolsOriginalFont = label:GetFont()
     end
     label:SetFont(fontString)
+    if IsResourceNumbersLabel(label) then
+        CenterResourceNumbersLabel(label)
+    end
 end
 
 local function FontStringFromAppearanceRow(row)
@@ -372,6 +477,9 @@ local function RestoreFontStringOnLabels(control, saveKey)
             local originalFont = label.huditorToolsOriginalFont
             if originalFont then
                 label:SetFont(originalFont)
+                if IsResourceNumbersLabel(label) then
+                    CenterResourceNumbersLabel(label)
+                end
             end
         end
         appliedFontLabelsBySaveKey[saveKey] = nil
@@ -384,6 +492,9 @@ local function RestoreFontStringOnLabels(control, saveKey)
         local originalFont = label.huditorToolsOriginalFont
         if originalFont then
             label:SetFont(originalFont)
+            if IsResourceNumbersLabel(label) then
+                CenterResourceNumbersLabel(label)
+            end
         end
     end)
     if saveKey == TRACKERS_SAVE_KEY then
@@ -559,11 +670,13 @@ function HT.InitializeElementAppearance()
     GetAppearanceRoot()
     HT.InstallElementAppearanceEditorHooks()
     InstallTrackerPlatformStyleHook()
+    InstallResourceNumbersWidthHook()
+    InstallBarFontCanvasResize()
     HUD_MANAGER:RegisterCallback("PropagateSettings", function ()
         HT.ApplyAllElementAppearances()
     end)
     HT.ApplyAllElementAppearances()
-    GetEventManager():RegisterForEvent(HT.eventName .. "_Appearance", EVENT_PLAYER_ACTIVATED, function ()
+    eventManager:RegisterForEvent(HT.eventName .. "_Appearance", EVENT_PLAYER_ACTIVATED, function ()
         zo_callLater(HT.ApplyAllElementAppearances, 0)
     end)
 end
