@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.2 - Dakjaniels
+
+### 1.3.2 Changed
+
+- Removed DetachNestedHudElements that was breaking things. oops. This was meant to fix the sticky elements when draging them apart. I will revist this at a later date. TODO
+
+### 1.3.2 Fixed
+
+- Target buffs no longer grow or shrink when you scale the target frame, and they can be moved on their own.
+
 ## 1.3.1 - Dakjaniels
 
 ### 1.3.1 Fixed
@@ -11,7 +21,6 @@
 - The objective meter selection box matches the capture meter instead of a cross.
 - The player interaction selection box covers the prompt and its keybinds instead of a thin line.
 - Health, magicka, and stamina numbers stay centered on the bar when you set a font. The width follows the text, including after a UI scale change.
-- Target buffs no longer grow or shrink when you scale the target frame, and they can be moved on their own. The same split applies to any Edit HUD element that was parented inside another one. Stacked trackers stay in the tracker list.
 
 ## 1.3.0 - Baertram
 
