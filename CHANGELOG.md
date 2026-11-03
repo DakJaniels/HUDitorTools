@@ -7,6 +7,9 @@
 - Player health, magicka, and stamina bars stay at their normal width. Heals, buffs, and raid max-stat changes no longer grow or shrink the bars, play the size animation, or add combat overlays.
 - The HUD editor selection box stays at the element's layout size. Changing an element's scale no longer grows or shrinks the box.
 - The Trackers font stays on quest lines after a quest updates or the tracked quest changes. A separated tracker still uses its own font when one is set.
+- The experience and champion bar keeps the spot you set in Edit HUD. The move was saved, then the game put the bar back on its default spot.
+- The objective meter selection box matches the capture meter instead of a cross.
+- The player interaction selection box covers the prompt and its keybinds instead of a thin line.
 
 ## 1.3.0 - Baertram
 
