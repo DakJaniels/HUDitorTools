@@ -4,7 +4,7 @@
 
 ### 1.3.2 Changed
 
-- Removed DetachNestedHudElements that was breaking things. oops. This was meant to fix the sticky elements when draging them apart. I will revist this at a later date. TODO
+- Removed DetachNestedHudElements that was breaking things. oops. This was meant to fix the sticky elements when dragging them apart. I will revisit this at a later date. TODO
 
 ### 1.3.2 Fixed
 
