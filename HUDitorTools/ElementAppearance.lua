@@ -45,6 +45,7 @@ local shownHookInstalled = {}
 local styledResourceNumberLabels = {}
 local resourceNumbersWidthHookInstalled = false
 local barFontCanvasResizeInstalled = false
+local nestedHudDetachInstalled = false
 
 -- GetStringWidth is pixels. SetWidth and anchor offsets are UI units
 -- (LuiExtended/src/Functions.lua 237-250). "0ui" stays put when custom UI scale changes.
@@ -513,12 +514,70 @@ local function InstallShownHook(control, element)
     end)
 end
 
+--- A stacked tracker is parented under ZO_HUDTrackers on purpose
+--- (HUDTracker_Manager.lua 251-265). A separated one is its own mover.
+--- @param control Control
+--- @return boolean
+local function IsStackedTracker(control)
+    local owner = control.owner
+    if not owner or not owner.IsDetached then
+        return false
+    end
+    -- IsDetached calls IsValid, which indexes the manager element
+    -- (HUDTracker_Base.lua 46-47). That element is registered in
+    -- HUDTracker_Manager:InitializeHUDElements on PreLoadSettings (line 169).
+    -- The tracker's own element already exists, so that is the wrong nil check.
+    if not HUD_TRACKER_MANAGER:GetPlatformHUDElement() then
+        return true
+    end
+    return not owner:IsDetached()
+end
+
+--- Target buffs are SetParent'd onto the target frame (BuffDebuff.lua 388-389).
+--- SetScale and GuiRoot anchors then belong to that parent. Reparent to GuiRoot
+--- and leave the existing anchor, so the default spot still follows its target.
+function HT.DetachNestedHudElements()
+    local hudControls = {}
+    local iterator = IsInGamepadPreferredMode() and HUD_MANAGER.GamepadElementIterator or HUD_MANAGER.KeyboardElementIterator
+    for _, element in iterator(HUD_MANAGER) do
+        hudControls[element:GetControl()] = true
+    end
+    for control in pairs(hudControls) do
+        if not IsStackedTracker(control) then
+            local parentControl = control:GetParent()
+            while parentControl and parentControl ~= GuiRoot do
+                if hudControls[parentControl] then
+                    control:SetParent(GuiRoot)
+                    break
+                end
+                parentControl = parentControl:GetParent()
+            end
+        end
+    end
+end
+
+local function InstallNestedHudDetach()
+    if nestedHudDetachInstalled then
+        return
+    end
+    nestedHudDetachInstalled = true
+    -- Runs after BuffDebuff.lua 487, which registered this callback first.
+    CALLBACK_MANAGER:RegisterCallback("TargetFrameCreated", function ()
+        HT.DetachNestedHudElements()
+    end)
+    -- RefreshLayout parents separated trackers back onto ZO_HUDTrackers (line 244).
+    SecurePostHook(HUD_TRACKER_MANAGER, "RefreshLayout", function ()
+        HT.DetachNestedHudElements()
+    end)
+end
+
 function HT.ApplyElementAppearance(element)
     local control = element:GetControl()
     if controlsApplyingAppearance[control] then
         return
     end
     controlsApplyingAppearance[control] = true
+    HT.DetachNestedHudElements()
     local saveKey = element:GetSaveKey()
     local row = HT.GetAppearanceRow(saveKey)
     local scale = 1
@@ -672,6 +731,8 @@ function HT.InitializeElementAppearance()
     InstallTrackerPlatformStyleHook()
     InstallResourceNumbersWidthHook()
     InstallBarFontCanvasResize()
+    InstallNestedHudDetach()
+    HT.DetachNestedHudElements()
     HUD_MANAGER:RegisterCallback("PropagateSettings", function ()
         HT.ApplyAllElementAppearances()
     end)
