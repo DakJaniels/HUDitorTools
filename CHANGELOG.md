@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.3 - Dakjaniels
+
+### 1.3.3 Fixed
+
+- Don't expand follows the checkbox. With it off, health, magicka, and stamina grow and shrink with max power again. With it on, they stay at normal width when max power increases, and they still shrink when max power drops.
+
+### 1.3.3 Changed
+
+- The HUD editor selection box shows the element's layout size on purpose. Scale changes the live HUD element and does not resize the box.
+
 ## 1.3.2 - Dakjaniels
 
 ### 1.3.2 Changed
