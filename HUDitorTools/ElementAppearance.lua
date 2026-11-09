@@ -654,12 +654,93 @@ local function OnEditorElementMouseWheel(editorControl, delta)
     HT.StepSelectedElementScale(editorElement, direction)
 end
 
+-- WorldMap.xml resizeHandleSize="8". WorldMap.lua ZO_WorldMap_OnResizeStart.
+local EDITOR_RESIZE_HANDLE_SIZE = 8
+local resizeDragByEditorControl = {}
+
+local function OnEditorElementResizeStart(editorControl)
+    local editorElement = editorControl.object
+    if not editorElement or not editorElement.GetElementData then
+        return
+    end
+    local elementData = editorElement:GetElementData()
+    if not elementData then
+        return
+    end
+    editorElement:Select()
+    local hudControl = elementData:GetControl()
+    local scale = hudControl:GetScale()
+    if not scale or scale == 0 then
+        scale = 1
+    end
+    -- GetDimensions includes scale, same as GetConvertedRefControlAnchorInfo.
+    local width, height = hudControl:GetDimensions()
+    local mouseX, mouseY = GetUIMousePosition()
+    local left, top, right, bottom = editorControl:GetScreenRect()
+    local minDistanceToVerticalEdge = zo_min(zo_abs(mouseX - left), zo_abs(mouseX - right))
+    local minDistanceToHorizontalEdge = zo_min(zo_abs(mouseY - top), zo_abs(mouseY - bottom))
+    resizeDragByEditorControl[editorControl] =
+    {
+        layoutWidth = width / scale,
+        layoutHeight = height / scale,
+        isWidthDriven = minDistanceToVerticalEdge < minDistanceToHorizontalEdge,
+    }
+end
+
+local function OnEditorElementResizeStop(editorControl)
+    local resizeDrag = resizeDragByEditorControl[editorControl]
+    resizeDragByEditorControl[editorControl] = nil
+    local editorElement = editorControl.object
+    if not resizeDrag or not editorElement or not editorElement.GetElementData then
+        return
+    end
+    local elementData = editorElement:GetElementData()
+    if not elementData then
+        return
+    end
+    local editorWidth, editorHeight = editorControl:GetDimensions()
+    local newScale
+    if resizeDrag.isWidthDriven then
+        if resizeDrag.layoutWidth > 0 then
+            newScale = editorWidth / resizeDrag.layoutWidth
+        end
+    elseif resizeDrag.layoutHeight > 0 then
+        newScale = editorHeight / resizeDrag.layoutHeight
+    end
+    if newScale == nil or newScale <= 0 then
+        newScale = HT.APPEARANCE_SCALE_STEP
+    end
+    newScale = zo_roundToNearest(newScale, HT.APPEARANCE_SCALE_STEP)
+    if newScale <= 0 then
+        newScale = HT.APPEARANCE_SCALE_STEP
+    end
+    local saveKey = elementData:GetSaveKey()
+    local row = HT.GetAppearanceRow(saveKey) or {}
+    HT.SetAppearanceRow(saveKey, {
+        scale = newScale,
+        fontFace = row.fontFace,
+        fontSize = row.fontSize,
+        fontOutline = row.fontOutline,
+    })
+    HT.ApplyElementAppearance(elementData)
+    editorElement:RefreshAnchors()
+    HT.RefreshAppearanceInfoBox()
+    HT.RefreshLayoutInfoBoxSection()
+end
+
 function HT.InstallElementScaleMouseWheel(editor)
     for _, elementControl in ipairs(editor.elementControls) do
         if not elementControl.huditorToolsScaleWheelInstalled then
             elementControl.huditorToolsScaleWheelInstalled = true
             if not elementControl:GetHandler("OnMouseWheel") then
                 elementControl:SetHandler("OnMouseWheel", OnEditorElementMouseWheel)
+            end
+            elementControl:SetResizeHandleSize(EDITOR_RESIZE_HANDLE_SIZE)
+            if not elementControl:GetHandler("OnResizeStart") then
+                elementControl:SetHandler("OnResizeStart", OnEditorElementResizeStart)
+            end
+            if not elementControl:GetHandler("OnResizeStop") then
+                elementControl:SetHandler("OnResizeStop", OnEditorElementResizeStop)
             end
         end
     end

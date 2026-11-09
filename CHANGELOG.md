@@ -12,6 +12,10 @@
 
 - The selection box matches the scaled element so it can be used to place it.
 
+### 1.3.4 New
+
+- HUD editor elements can be resized from their edges. The size is saved as that element's scale.
+
 ## 1.3.3 - Dakjaniels
 
 ### 1.3.3 Fixed
