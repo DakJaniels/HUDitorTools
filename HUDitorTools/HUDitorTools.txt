@@ -14,6 +14,7 @@ lang/$(language).lua
 
 ;Main addon
 HUDitorTools.lua
+Utility.lua
 ElementAppearance.lua
 ExtraHudElements.lua
 ResourceBarGroup.lua

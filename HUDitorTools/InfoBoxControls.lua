@@ -12,14 +12,7 @@ local infoBoxSection
 local HE_KB = HUD_EDITOR_KEYBOARD
 
 local function ClampGridSize(value)
-    value = zo_floor(tonumber(value) or HT.SV.gridSize)
-    if value < MIN_GRID_SIZE then
-        return MIN_GRID_SIZE
-    end
-    if value > MAX_GRID_SIZE then
-        return MAX_GRID_SIZE
-    end
-    return value
+    return HT.ClampInteger(value, MIN_GRID_SIZE, MAX_GRID_SIZE, HT.SV.gridSize)
 end
 
 local function GetInfoBox()

@@ -889,9 +889,8 @@ local function InstallEditorHooks(fromSceneChange)
                 infoBoxSettingsButton.type = "settings"
             end
             if infoBoxSettingsButton then
-                infoBoxSettingsButton:SetDrawTier(DT_HIGH)
+                HT.SetEditorDrawTierAndLevel(infoBoxSettingsButton, HT.INFO_BOX_INTERACTABLE_LEVEL)
                 infoBoxSettingsButton:SetDrawLayer(DL_CONTROLS)
-                infoBoxSettingsButton:SetDrawLevel(ZO_HUD_EDITOR_KEYBOARD_INFO_BOX_INTERACTABLE_ELEMENT_LEVEL)
             end
         end)
         infoBoxShownAtSceneChangeHookDone = true
@@ -1322,7 +1321,7 @@ local function OnAddOnLoaded(_, addonName)
     HT.InitializeHudLayouts()
 
     -- Scenes and hooks
-    SM:GetScene("hud_editor_keyboard"):RegisterCallback("StateChange", OnEditorSceneStateChange)
+    SM:GetScene(HT.EDITOR_SCENE_NAME):RegisterCallback("StateChange", OnEditorSceneStateChange)
     InstallHooks()
 end
 EM:RegisterForEvent(HT.eventName, EVENT_ADD_ON_LOADED, OnAddOnLoaded)

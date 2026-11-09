@@ -23,14 +23,7 @@ local shrinkExpandOnValueChangedHooked = false
 local shrinkExpandModule = nil
 
 local function ClampHealthWidth(healthWidth)
-    healthWidth = zo_floor(tonumber(healthWidth) or HT.RESOURCE_BAR_GROUP_DEFAULT_WIDTH)
-    if healthWidth < MIN_HEALTH_WIDTH then
-        return MIN_HEALTH_WIDTH
-    end
-    if healthWidth > MAX_HEALTH_WIDTH then
-        return MAX_HEALTH_WIDTH
-    end
-    return healthWidth
+    return HT.ClampInteger(healthWidth, MIN_HEALTH_WIDTH, MAX_HEALTH_WIDTH, HT.RESOURCE_BAR_GROUP_DEFAULT_WIDTH)
 end
 
 function HT.CopyResourceBarGroup(sourceGroup)
@@ -118,10 +111,7 @@ local function SetBarWidth(bar, width)
 end
 
 local function GetPlayerAttributeFrameElement()
-    if IsInGamepadPreferredMode() then
-        return HUD_MANAGER:GetGamepadElementForControl(ZO_PlayerAttribute)
-    end
-    return HUD_MANAGER:GetKeyboardElementForControl(ZO_PlayerAttribute)
+    return HT.GetHudElementForControl(ZO_PlayerAttribute)
 end
 
 local function IsPlayerAttributeFrameCombined()
@@ -264,9 +254,7 @@ function HT.SetResourceBarGroupEnabled(enabled)
         SetResourceBarsCombined()
     end
     HT.ApplyResourceBarGroup()
-    if HUD_EDITOR_KEYBOARD:IsShowing() then
-        HUD_EDITOR_KEYBOARD:RebuildAllElements()
-    end
+    HT.RebuildHudEditorIfShowing()
     HT.RefreshLayoutInfoBoxSection()
 end
 
@@ -275,9 +263,7 @@ function HT.SetResourceBarGroupHealthWidth(healthWidth)
     settings.healthWidth = ClampHealthWidth(healthWidth)
     if settings.enabled then
         HT.ApplyResourceBarGroup()
-        if HUD_EDITOR_KEYBOARD:IsShowing() then
-            HUD_EDITOR_KEYBOARD:RebuildAllElements()
-        end
+        HT.RebuildHudEditorIfShowing()
     end
     HT.RefreshLayoutInfoBoxSection()
     return settings.healthWidth

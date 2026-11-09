@@ -73,15 +73,7 @@ local function ReadScale(scale)
 end
 
 local function ReadFontSize(fontSize)
-    fontSize = tonumber(fontSize)
-    if fontSize == nil then
-        return HT.APPEARANCE_FONT_SIZE_DEFAULT
-    end
-    fontSize = zo_floor(fontSize)
-    if fontSize < 1 then
-        return 1
-    end
-    return fontSize
+    return HT.ClampInteger(fontSize, 1, nil, HT.APPEARANCE_FONT_SIZE_DEFAULT)
 end
 
 function HT.GetAppearanceInputModeKey()
@@ -187,12 +179,6 @@ function HT.SetAppearanceRow(saveKey, row, inputModeKey)
     }
 end
 
---- @param layoutValue number
---- @return string
-local function FormatUiLayoutMeasurement(layoutValue)
-    return string.format("%dui", zo_round(layoutValue))
-end
-
 --- @param label LabelControl
 --- @param text string|nil
 --- @return number
@@ -240,7 +226,7 @@ local function CenterResourceNumbersLabel(label)
     label:SetVerticalAlignment(TEXT_ALIGN_CENTER)
     local parentControl = label:GetParent()
     label:ClearAnchors()
-    label:SetAnchor(CENTER, parentControl, CENTER, FormatUiLayoutMeasurement(0), FormatUiLayoutMeasurement(0))
+    label:SetAnchor(CENTER, parentControl, CENTER, HT.FormatUiLayoutMeasurement(0), HT.FormatUiLayoutMeasurement(0))
     local textWidth = GetLabelStringWidthUI(label, label:GetText())
     if textWidth > 0 then
         label:SetWidth(textWidth)
@@ -531,12 +517,7 @@ function HT.DetachTargetBuffsFromTargetFrame()
     if not parentControl or parentControl == ZO_BuffDebuffTopLevel or parentControl == GuiRoot then
         return
     end
-    local element
-    if IsInGamepadPreferredMode() then
-        element = HUD_MANAGER:GetGamepadElementForControl(targetContainer)
-    else
-        element = HUD_MANAGER:GetKeyboardElementForControl(targetContainer)
-    end
+    local element = HT.GetHudElementForControl(targetContainer)
     targetContainer:SetParent(GuiRoot)
     if element then
         element:GetCurrentAnchor():Set(targetContainer)
@@ -603,12 +584,7 @@ function HT.ApplyAllElementAppearances()
         if not HT.IsAppearanceRowDefault(row) then
             local control = _G[saveKey]
             if type(control) == "userdata" then
-                local element
-                if IsInGamepadPreferredMode() then
-                    element = HUD_MANAGER:GetGamepadElementForControl(control)
-                else
-                    element = HUD_MANAGER:GetKeyboardElementForControl(control)
-                end
+                local element = HT.GetHudElementForControl(control)
                 if element then
                     HT.ApplyElementAppearance(element)
                 end

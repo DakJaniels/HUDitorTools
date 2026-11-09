@@ -343,12 +343,7 @@ end
 --- runs after OnBarLevelChange, so the saved offsets stay in the profile and the
 --- control shows the template anchor until this runs.
 local function RestorePlayerProgressSavedAnchor()
-    local element
-    if IsInGamepadPreferredMode() then
-        element = HUD_MANAGER:GetGamepadElementForControl(ZO_PlayerProgress)
-    else
-        element = HUD_MANAGER:GetKeyboardElementForControl(ZO_PlayerProgress)
-    end
+    local element = HT.GetHudElementForControl(ZO_PlayerProgress)
     if not element or element:IsUsingDefaultAnchor() then
         return
     end
