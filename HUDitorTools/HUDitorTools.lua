@@ -10,7 +10,7 @@ local HT = HUDitorTools
 
 -- Addon data
 local addonWebsite = "https://www.esoui.com/downloads/info4750"
-HT.version = "1.3.3"
+HT.version = "1.3.4"
 HT.name = "HUDitor Tools"
 HT.displayName = "|c00FF00HUD|cFFFF00itor|r Tools"
 HT.eventName = "HUDitorTools"
@@ -1232,6 +1232,46 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 --- HUD Editor Scene
 ------------------------------------------------------------------------------------------------------------------------
+-- PerfectPixel parents infoBox.PP_BG to PP.TLW_BG (DT_LOW). A child cannot draw
+-- above that tier, so the skinned background stays under the selection boxes
+-- (tier HIGH, selected draw level 4). Selected box is 4; info-box controls are 15.
+local PERFECT_PIXEL_INFO_BOX_BACKGROUND_LEVEL = 5
+
+local function RaisePerfectPixelInfoBoxBackground()
+    local infoBox = ZO_HUDEditor_Keyboard_TLInfoBox
+    if not infoBox then
+        return
+    end
+    local background = infoBox.PP_BG
+    if not background or background:GetParent() == infoBox then
+        return
+    end
+    -- SetParent clears anchors. PerfectPixel anchored this backdrop to the info box.
+    local savedAnchors = {}
+    local anchorCount = background:GetNumAnchors()
+    for anchorIndex = 0, anchorCount - 1 do
+        local isValid, point, relativeTo, relativePoint, offsetX, offsetY = background:GetAnchor(anchorIndex)
+        if isValid then
+            savedAnchors[#savedAnchors + 1] =
+            {
+                point = point,
+                relativeTo = relativeTo,
+                relativePoint = relativePoint,
+                offsetX = offsetX,
+                offsetY = offsetY,
+            }
+        end
+    end
+    background:SetParent(infoBox)
+    background:ClearAnchors()
+    for _, savedAnchor in ipairs(savedAnchors) do
+        background:SetAnchor(savedAnchor.point, savedAnchor.relativeTo, savedAnchor.relativePoint, savedAnchor.offsetX, savedAnchor.offsetY)
+    end
+    background:SetDrawTier(DT_HIGH)
+    background:SetDrawLayer(DL_BACKGROUND)
+    background:SetDrawLevel(PERFECT_PIXEL_INFO_BOX_BACKGROUND_LEVEL)
+end
+
 local function OnEditorSceneStateChange(oldState, newState)
     local isSceneShowing = newState == SCENE_SHOWING
     if isSceneShowing or newState == SCENE_SHOWN then
@@ -1239,6 +1279,7 @@ local function OnEditorSceneStateChange(oldState, newState)
         if isSceneShowing then
             InstallEditorHooks(true)
         end
+        RaisePerfectPixelInfoBoxBackground()
         HT.RefreshGridOverlay()
         HT.RefreshColorPickerVisibility()
     elseif newState == SCENE_HIDING or newState == SCENE_HIDDEN then

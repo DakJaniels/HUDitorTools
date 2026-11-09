@@ -4,8 +4,7 @@
 -- Pyramid matches LuiExtended UnitFrames.RepositionDefaultFrames: magicka
 -- TOPRIGHT and stamina TOPLEFT on health BOTTOM. Health stays CENTER.
 -- ShrinkExpand stays registered. Don't expand keeps increased max power at
--- normalWidth. Other PlayerAttributeBars visual modules are unregistered
--- by class .. GetModuleId().
+-- normalWidth. Shield, armor, regen, unwavering, and possession stay registered.
 -- -----------------------------------------------------------------------------
 local HT = HUDitorTools
 
@@ -22,17 +21,6 @@ local groupedLayoutIsApplied = false
 local resourceBarHooksInstalled = false
 local shrinkExpandOnValueChangedHooked = false
 local shrinkExpandModule = nil
-
--- Event namespace is the string passed to RegisterForEvent in each module's OnAdded.
-local VISUAL_MODULE_EVENT_PREFIX =
-{
-    [ZO_UnitVisualizer_ArrowRegenerationModule] = "ZO_UnitVisualizer_ArrowRegenerationModule",
-    [ZO_UnitVisualizer_ShrinkExpandModule] = "ZO_UnitVisualizer_ShrinkExpandModule",
-    [ZO_UnitVisualizer_ArmorDamage] = "ZO_UnitVisualizer_ArmorDamage",
-    [ZO_UnitVisualizer_UnwaveringModule] = "ZO_UnitVisualizer_UnwaveringModule",
-    [ZO_UnitVisualizer_PossessionModule] = "ZO_UnitVisualizer_PossessionModule",
-    [ZO_UnitVisualizer_PowerShieldModule] = "ZO_UnitVisualizer_PowerShieldModule",
-}
 
 local function ClampHealthWidth(healthWidth)
     healthWidth = zo_floor(tonumber(healthWidth) or HT.RESOURCE_BAR_GROUP_DEFAULT_WIDTH)
@@ -315,71 +303,6 @@ local function HookPlayerAttributeBarsMethod(methodName)
     PLAYER_ATTRIBUTE_BARS[methodName] = hookedMethod
 end
 
-local function GetPlayerAttributeVisualEventName(visualModule)
-    for visualClass, eventPrefix in pairs(VISUAL_MODULE_EVENT_PREFIX) do
-        if visualModule:IsInstanceOf(visualClass) then
-            return eventPrefix .. visualModule:GetModuleId()
-        end
-    end
-    return nil
-end
-
-local function HideNamedControl(info, controlFieldName)
-    local control = info[controlFieldName]
-    if control then
-        control:SetHidden(true)
-    end
-end
-
-local function ReleasePlayerAttributeVisualModule(visualModule)
-    if visualModule:IsInstanceOf(ZO_UnitVisualizer_ArrowRegenerationModule) then
-        visualModule.arrowPool:ReleaseAllObjects()
-        return
-    end
-    if visualModule:IsInstanceOf(ZO_UnitVisualizer_ArmorDamage) then
-        visualModule:GetOrCreateIncreaseArmorPool():ReleaseAllObjects()
-        visualModule:GetOrCreateDecreaseArmorPool():ReleaseAllObjects()
-        visualModule:GetOrCreateIncreasePowerPool():ReleaseAllObjects()
-        return
-    end
-    -- ShowOverlay and PlayAnimation create these controls the first time the effect runs.
-    if visualModule:IsInstanceOf(ZO_UnitVisualizer_PowerShieldModule) and visualModule.attributeInfo then
-        for _, info in pairs(visualModule.attributeInfo) do
-            if info.overlayControls then
-                for _, overlay in ipairs(info.overlayControls) do
-                    overlay:SetHidden(true)
-                end
-            end
-        end
-        return
-    end
-    if visualModule:IsInstanceOf(ZO_UnitVisualizer_UnwaveringModule) and visualModule.barInfo then
-        for _, info in pairs(visualModule.barInfo) do
-            HideNamedControl(info, "control")
-        end
-        return
-    end
-    if visualModule:IsInstanceOf(ZO_UnitVisualizer_PossessionModule) and visualModule.barInfo then
-        for _, info in pairs(visualModule.barInfo) do
-            HideNamedControl(info, "barOverlayControl")
-        end
-    end
-end
-
-local function SilencePlayerAttributeVisualizer()
-    local visualModules = PLAYER_ATTRIBUTE_BARS.attributeVisualizer.visualModules
-    for visualModule in pairs(visualModules) do
-        -- ShrinkExpand stays registered so Don't expand can restore stock grow and shrink.
-        if not visualModule:IsInstanceOf(ZO_UnitVisualizer_ShrinkExpandModule) then
-            local eventName = GetPlayerAttributeVisualEventName(visualModule)
-            EVENT_MANAGER:UnregisterForEvent(eventName, EVENT_PLAYER_ACTIVATED)
-            EVENT_MANAGER:UnregisterForUpdate(eventName)
-            ReleasePlayerAttributeVisualModule(visualModule)
-            visualModules[visualModule] = nil
-        end
-    end
-end
-
 function HT.InitializeResourceBarGroup()
     GetResourceBarGroupSettings()
     if not resourceBarHooksInstalled then
@@ -388,5 +311,4 @@ function HT.InitializeResourceBarGroup()
         HookPlayerAttributeBarsMethod("OnScreenResized")
     end
     HT.ApplyResourceBarGroup()
-    SilencePlayerAttributeVisualizer()
 end

@@ -4,8 +4,8 @@
 -- Reapply after ZO_HUDManager:PropagateSettings (hudmanager.lua) and when
 -- the hud_editor_keyboard scene hides. SetScale is only on the HUD control.
 -- RefreshAnchors copies hudElementRef:GetDimensions(). That value includes
--- the control scale, same as GetHeight in ZO_Scroll_UpdateScrollBar. Divide
--- by the HUD control GetScale once. The anchor from
+-- the control scale, same as GetHeight in ZO_Scroll_UpdateScrollBar, so the
+-- editor selection box matches the scaled control. The anchor from
 -- ZO_GetControlPointOffsetFromGuiRoot is left as RefreshAnchors set it.
 -- -----------------------------------------------------------------------------
 local HT = HUDitorTools
@@ -518,13 +518,28 @@ end
 --- That is the only registered HUD element ZOS parents onto a different HUD element.
 --- Health, magicka, and stamina stay children of ZO_PlayerAttribute
 --- (PlayerAttributeBars.xml 85, 132, 197). Combined Resources and the pyramid
---- layout (ResourceBarGroup.lua 149-159) depend on that parent.
+--- layout (ResourceBarGroup.lua 139-153) depend on that parent.
 --- Trackers stay under ZO_HUDTrackers (HUDTracker_Manager.lua 244-255).
+--- SetParent clears anchors, so the HUD element's current anchor is put back.
+--- That is the caption anchor from RegisterKeyboardElement, or a saved offset.
 function HT.DetachTargetBuffsFromTargetFrame()
     local targetContainer = ZO_BuffDebuffTopLevelTargetContainer
+    if not targetContainer then
+        return
+    end
     local parentControl = targetContainer:GetParent()
-    if parentControl ~= ZO_BuffDebuffTopLevel and parentControl ~= GuiRoot then
-        targetContainer:SetParent(GuiRoot)
+    if not parentControl or parentControl == ZO_BuffDebuffTopLevel or parentControl == GuiRoot then
+        return
+    end
+    local element
+    if IsInGamepadPreferredMode() then
+        element = HUD_MANAGER:GetGamepadElementForControl(targetContainer)
+    else
+        element = HUD_MANAGER:GetKeyboardElementForControl(targetContainer)
+    end
+    targetContainer:SetParent(GuiRoot)
+    if element then
+        element:GetCurrentAnchor():Set(targetContainer)
     end
 end
 
@@ -650,17 +665,6 @@ function HT.InstallElementScaleMouseWheel(editor)
     end
 end
 
-local function ApplyEditorSelectorLayoutSize(editorElement)
-    local hudControl = editorElement:GetElementData():GetControl()
-    local scale = hudControl:GetScale()
-    if zo_abs(scale - 1) < 0.001 then
-        return
-    end
-    local editorControl = editorElement:GetControl()
-    local width, height = editorControl:GetDimensions()
-    editorControl:SetDimensions(width / scale, height / scale)
-end
-
 function HT.InstallElementAppearanceEditorHooks()
     if editorScaleHooksInstalled then
         return
@@ -668,9 +672,6 @@ function HT.InstallElementAppearanceEditorHooks()
     editorScaleHooksInstalled = true
     SecurePostHook(ZO_HUDEditor_Keyboard, "PopulateElementControls", function (editor)
         HT.InstallElementScaleMouseWheel(editor)
-    end)
-    SecurePostHook(ZO_HUDEditorElement_Keyboard, "RefreshAnchors", function (editorElement)
-        ApplyEditorSelectorLayoutSize(editorElement)
     end)
 end
 
