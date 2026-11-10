@@ -634,6 +634,24 @@ end
 local EDITOR_RESIZE_HANDLE_SIZE = 8
 local resizeDragByEditorControl = {}
 
+local function RememberEditorResizeScreenSize(editorControl)
+    local resizeDrag = resizeDragByEditorControl[editorControl]
+    if not resizeDrag then
+        return
+    end
+    -- OnResizeStop runs after StopMovingOrResizing, and GetDimensions is 0 then.
+    -- The screen rect from the last update is the size the user actually dragged.
+    local left, top, right, bottom = editorControl:GetScreenRect()
+    local screenWidth = right - left
+    local screenHeight = bottom - top
+    if screenWidth > 1 then
+        resizeDrag.screenWidth = screenWidth
+    end
+    if screenHeight > 1 then
+        resizeDrag.screenHeight = screenHeight
+    end
+end
+
 local function OnEditorElementResizeStart(editorControl)
     local editorElement = editorControl.object
     if not editorElement or not editorElement.GetElementData then
@@ -649,21 +667,24 @@ local function OnEditorElementResizeStart(editorControl)
     if not scale or scale == 0 then
         scale = 1
     end
-    -- GetDimensions includes scale, same as GetConvertedRefControlAnchorInfo.
-    local width, height = hudControl:GetDimensions()
-    local mouseX, mouseY = GetUIMousePosition()
     local left, top, right, bottom = editorControl:GetScreenRect()
+    local mouseX, mouseY = GetUIMousePosition()
     local minDistanceToVerticalEdge = zo_min(zo_abs(mouseX - left), zo_abs(mouseX - right))
     local minDistanceToHorizontalEdge = zo_min(zo_abs(mouseY - top), zo_abs(mouseY - bottom))
     resizeDragByEditorControl[editorControl] =
     {
-        layoutWidth = width / scale,
-        layoutHeight = height / scale,
+        startScale = scale,
+        startScreenWidth = right - left,
+        startScreenHeight = bottom - top,
+        screenWidth = right - left,
+        screenHeight = bottom - top,
         isWidthDriven = minDistanceToVerticalEdge < minDistanceToHorizontalEdge,
     }
+    editorControl:SetHandler("OnUpdate", RememberEditorResizeScreenSize)
 end
 
 local function OnEditorElementResizeStop(editorControl)
+    editorControl:SetHandler("OnUpdate", nil)
     local resizeDrag = resizeDragByEditorControl[editorControl]
     resizeDragByEditorControl[editorControl] = nil
     local editorElement = editorControl.object
@@ -674,21 +695,20 @@ local function OnEditorElementResizeStop(editorControl)
     if not elementData then
         return
     end
-    local editorWidth, editorHeight = editorControl:GetDimensions()
     local newScale
     if resizeDrag.isWidthDriven then
-        if resizeDrag.layoutWidth > 0 then
-            newScale = editorWidth / resizeDrag.layoutWidth
+        if resizeDrag.startScreenWidth > 1 and resizeDrag.screenWidth > 1 then
+            newScale = resizeDrag.startScale * (resizeDrag.screenWidth / resizeDrag.startScreenWidth)
         end
-    elseif resizeDrag.layoutHeight > 0 then
-        newScale = editorHeight / resizeDrag.layoutHeight
+    elseif resizeDrag.startScreenHeight > 1 and resizeDrag.screenHeight > 1 then
+        newScale = resizeDrag.startScale * (resizeDrag.screenHeight / resizeDrag.startScreenHeight)
     end
     if newScale == nil or newScale <= 0 then
-        newScale = HT.APPEARANCE_SCALE_STEP
+        return
     end
     newScale = zo_roundToNearest(newScale, HT.APPEARANCE_SCALE_STEP)
     if newScale <= 0 then
-        newScale = HT.APPEARANCE_SCALE_STEP
+        return
     end
     local saveKey = elementData:GetSaveKey()
     local row = HT.GetAppearanceRow(saveKey) or {}

@@ -1087,7 +1087,7 @@ local function InstallEditorElementHooks()
     if HUDEditorElementHooksDone or not HT.SV.gridSnap then return end
 
     ZO_PreHook(ZO_HUDEditorElement_Keyboard, "ApplyChanges", function (self)
-        if not HT.SV.gridSnap then
+        if HT.nudgeSkipsGridSnap or not HT.SV.gridSnap then
             return false
         end
         SnapControlTopLeft(self.control)
@@ -1095,7 +1095,7 @@ local function InstallEditorElementHooks()
     end)
 
     ZO_PreHook(ZO_HUDEditorElement_Keyboard, "SetPositionFromTopLeft", function (self, offsetX, offsetY)
-        if not HT.SV.gridSnap then
+        if HT.nudgeSkipsGridSnap or not HT.SV.gridSnap then
             return false
         end
         offsetX, offsetY = HT.ApplySnap(tonumber(offsetX), tonumber(offsetY), HT.SV.gridSize)
@@ -1318,6 +1318,7 @@ local function OnAddOnLoaded(_, addonName)
     HT.InstallColorPicker()
     HT.InstallLayoutInfoBoxSection()
     HT.InstallAppearanceInfoBoxSection()
+    HT.InstallNudgePanel()
     HT.InitializeHudLayouts()
 
     -- Scenes and hooks

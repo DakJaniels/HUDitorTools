@@ -33,6 +33,10 @@ InfoBoxControls.lua
 ColorPicker.xml
 ColorPicker.lua
 
+;Selected element nudge panel
+NudgePanel.xml
+NudgePanel.lua
+
 ;Named HUD layouts + import/export
 LayoutCodec.lua
 Layouts.lua
