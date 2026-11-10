@@ -1,0 +1,130 @@
+----------------------------------------------------------------
+[B]1.3.4 - Dakjaniels[/B]
+
+[B]Fixed[/B]
+[LIST]
+[*] Damage shields and the other player attribute-bar combat indicators show again. Don't expand still only stops the bar growing when max power increases.
+[*] Target debuff icons draw again. They stay on the target name, and scaling the target frame does not scale them.
+[*] With PerfectPixel, the HUD editor info box draws above the selection boxes.
+[*] The stealth icon selection box matches the 64 eye instead of a cross.
+[*] The objective capture meter selection box is the 128 meter instead of a cross.
+[/LIST]
+
+[B]Changed[/B]
+[LIST]
+[*] The selection box matches the scaled element so it can be used to place it.
+[/LIST]
+
+[B]New[/B]
+[LIST]
+[*] Dragging an element's edge keeps the size you release at. Letting go no longer shrinks the element to the smallest scale.
+[*] Each selected HUD element has its own Reset position, Reset scale, and arrow buttons. Each arrow moves that element by 1 unit.
+[*] Hide health buff glow turns off the increased-power glow on the player health bar. The low-health warning stays.
+[/LIST]
+----------------------------------------------------------------
+[B]1.3.3 - Dakjaniels[/B]
+
+[B]Fixed[/B]
+[LIST]
+[*] Don't expand follows the checkbox. With it off, health, magicka, and stamina grow and shrink with max power again. With it on, they stay at normal width when max power increases, and they still shrink when max power drops.
+[/LIST]
+----------------------------------------------------------------
+[B]1.3.2 - Dakjaniels[/B]
+
+[B]Changed[/B]
+[LIST]
+[*] Removed DetachNestedHudElements that was breaking things. oops. This was meant to fix the sticky elements when dragging them apart. I will revisit this at a later date. TODO
+[/LIST]
+
+[B]Fixed[/B]
+[LIST]
+[*] Target buffs no longer grow or shrink when you scale the target frame, and they can be moved on their own.
+[/LIST]
+----------------------------------------------------------------
+[B]1.3.1 - Dakjaniels[/B]
+[B]Fixed[/B]
+[LIST]
+[*] Player health, magicka, and stamina bars stay at their normal width. Heals, buffs, and raid max-stat changes no longer grow or shrink the bars, play the size animation, or add combat overlays.
+[*] The HUD editor selection box stays at the element's layout size. Changing an element's scale no longer grows or shrinks the box.
+[*] The Trackers font stays on quest lines after a quest updates or the tracked quest changes. A separated tracker still uses its own font when one is set.
+[*] The experience and champion bar keeps the spot you set in Edit HUD. The move was saved, then the game put the bar back on its default spot.
+[*] The objective meter selection box matches the capture meter instead of a cross.
+[*] The player interaction selection box covers the prompt and its keybinds instead of a thin line.
+[*] Health, magicka, and stamina numbers stay centered on the bar when you set a font. The width follows the text, including after a UI scale change.
+[*] Target buffs no longer grow or shrink when you scale the target frame, and they can be moved on their own. The same split applies to any Edit HUD element that was parented inside another one. Stacked trackers stay in the tracker list.
+[/LIST]
+
+----------------------------------------------------------------
+[B]1.3.0 - Baertram[/B]
+
+[B]Fixed[/B]
+[LIST]
+[*] Translations used everywhere on the UI now
+[*] Updated German translations
+[*] HUD editor info box's grid-snap feature only selectable if grid is enabled
+[*] Context menu button entries for layouts not showing broken submenu entries
+[/LIST]
+
+[B]New[/B]
+[LIST]
+[*] Delete layout button at LAM settings panel
+[/LIST]
+
+
+----------------------------------------------------------------
+[B]1.2.0 - Dakjaniels[/B]
+
+[B]New[/B]
+[LIST]
+[*] Per-element scale and font on the HUD Editor info box (face, size, and outline). Scale is any positive percent and changes the live control only, not the editor preview. Saved fonts reapply after reload.
+[*] Optional LibMediaProvider adds its font list. Without it, the built-in game fonts are used.
+[*] Extra Edit HUD movers for stock frames the base editor does not own: Battleground score, Objective meter, Player interaction, Player progress, Reticle, Reticle interact, Stealth icon, Ram, and Tutorials.
+[*] Pyramid layout for the player resource bars (health on top, magicka and stamina tucked underneath). It is separate from Combined Resources and only applies while Combined Resources is on.
+[*] Don't expand keeps health, magicka, and stamina at their normal width when max power increases. Bars still shrink when max power drops.
+[*] Grid overlay lines are 1px and aligned to UI units.
+[*] Share strings are HUDT version 3 and include scale, font, pyramid, and don't-expand. Version 1 and 2 strings still import.
+[/LIST]
+----------------------------------------------------------------
+[B]Version 1.1.0 - Dakjaniels[/B]
+
+[B]New[/B]
+[LIST]
+[*] Named HUD layouts (20 per account, 20 per character). Khajiit is impressed you have this many characters. Khajiit is also concerned. Features Save / New / Rename / Delete.
+[*] Import and export via compact [B]HUDT[/B] share strings (Ctrl+C in the export dialog) I wish addons could write the clipboard. 
+[*] Layout controls on the HUD Editor Info Box, plus the settings gear menu and /hudis.
+[*] Switching a character layout reapplies it on login because the base-game HUD is account-wide.
+[*] A layout that omits an addon HUD element clears that element's saved position (it returns to default).
+[*] Optional chat messages (off by default): layout apply details and HUD editor hide/show notices.
+[/LIST]
+
+[B]Fix[/B]
+[LIST]
+[*] Opening /hudis no longer errors on the Active layout dropdown.
+[/LIST]
+----------------------------------------------------------------
+[B]Version 1.0.2 - Dakjaniels[/B]
+
+[B]New[/B]
+[LIST]
+[*] Added live color picker in the HUD editor (grid, selected, unselected, and hidden element colors).
+[*] Color changes apply immediately while editing; reset per color; picker is movable and remembers its position.
+[*] Toggle the picker from the InfoBox, the settings context menu, or the Colors submenu.
+[*] HUD element colors now include fill (not just the border).
+[*] Grid overlay optimizations.
+[/LIST]
+----------------------------------------------------------------
+[B]Version 1.0.1 - Baertram[/B]
+
+[B]Changes[/B]
+[LIST]
+[*] Renamed addon.
+[*] Added new features.
+[/LIST]
+----------------------------------------------------------------
+[B]Version 1.0 - Dakjaniels[/B]
+
+[B]New[/B]
+[LIST]
+[*] Initial release as HUDGridSnap.
+[*] HUD grid with grid snap and customizable grid size.
+[/LIST]
