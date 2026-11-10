@@ -501,26 +501,28 @@ local function InstallShownHook(control, element)
 end
 
 --- Target buffs are SetParent'd onto the target frame (BuffDebuff.lua 388-389).
---- That is the only registered HUD element ZOS parents onto a different HUD element.
---- Health, magicka, and stamina stay children of ZO_PlayerAttribute
---- (PlayerAttributeBars.xml 85, 132, 197). Combined Resources and the pyramid
---- layout (ResourceBarGroup.lua 139-153) depend on that parent.
---- Trackers stay under ZO_HUDTrackers (HUDTracker_Manager.lua 244-255).
---- SetParent clears anchors, so the HUD element's current anchor is put back.
---- That is the caption anchor from RegisterKeyboardElement, or a saved offset.
+--- That parents them out of ZO_BuffDebuffTopLevel. BUFF_DEBUFF_FRAGMENT is that
+--- window (BuffDebuff.lua 343, HUDScene.lua 106). A child of GuiRoot is not in
+--- the fragment, so the icons never draw. Put the container back on the buff
+--- window and anchor it to the target caption (same point as BuffDebuff.lua 388).
+--- The caption anchor does not inherit the target frame's SetScale.
+--- A saved HUD move is a GuiRoot anchor, so that one is applied instead.
 function HT.DetachTargetBuffsFromTargetFrame()
     local targetContainer = ZO_BuffDebuffTopLevelTargetContainer
     if not targetContainer then
         return
     end
     local parentControl = targetContainer:GetParent()
-    if not parentControl or parentControl == ZO_BuffDebuffTopLevel or parentControl == GuiRoot then
+    if not parentControl or parentControl == ZO_BuffDebuffTopLevel then
         return
     end
+    local caption = parentControl:GetNamedChild("Caption")
     local element = HT.GetHudElementForControl(targetContainer)
-    targetContainer:SetParent(GuiRoot)
-    if element then
+    targetContainer:SetParent(ZO_BuffDebuffTopLevel)
+    if element and not element:IsUsingDefaultAnchor() then
         element:GetCurrentAnchor():Set(targetContainer)
+    elseif caption then
+        targetContainer:SetAnchor(CENTER, caption, BOTTOM, 0, 40)
     end
 end
 

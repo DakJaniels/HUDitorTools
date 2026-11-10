@@ -5,7 +5,7 @@
 ### 1.3.4 Fixed
 
 - Damage shields and the other player attribute-bar combat indicators show again. Don't expand still only stops the bar growing when max power increases.
-- Target debuff icons stay on the target frame. They still do not scale with that frame.
+- Target debuff icons draw again. They stay on the target name, and scaling the target frame does not scale them.
 - With PerfectPixel, the HUD editor info box draws above the selection boxes.
 
 ### 1.3.4 Changed
