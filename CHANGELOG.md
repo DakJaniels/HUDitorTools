@@ -7,6 +7,8 @@
 - Damage shields and the other player attribute-bar combat indicators show again. Don't expand still only stops the bar growing when max power increases.
 - Target debuff icons draw again. They stay on the target name, and scaling the target frame does not scale them.
 - With PerfectPixel, the HUD editor info box draws above the selection boxes.
+- The stealth icon selection box matches the 64 eye instead of a cross.
+- The objective capture meter selection box is the 128 meter instead of a cross.
 
 ### 1.3.4 Changed
 
