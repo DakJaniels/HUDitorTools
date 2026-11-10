@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.5 - Dakjaniels
+
+### 1.3.5 Fixed
+
+- VEQ can refresh the quest tracker while addons are still loading. That no longer errors, and the quest lines use the combined Trackers font until the tracker element exists.
+
 ## 1.3.4 - Dakjaniels
 
 ### 1.3.4 Fixed

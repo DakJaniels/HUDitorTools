@@ -392,9 +392,22 @@ end
 
 -- Quest lines take FONT_HEADER, FONT_GENERAL, and FONT_SUBCATEGORY when the
 -- header, condition, and step pools acquire them (QuestTracker.lua).
+-- IsDetached calls the manager element's IsValid (HUDTracker_Base.lua 42-47
+-- and 181). keyboardHUDElement is assigned in InitializeHUDElements
+-- (HUDTracker_Manager.lua 169) on EVENT_ADD_ONS_LOADED. A user addon can call
+-- AddQuest from its own EVENT_ADD_ON_LOADED, while that field is still nil.
+-- SeparatedTrackers defaults to false (HUDTracker_Manager.lua 130).
 local function FontStringForTracker(trackerOwner)
     local fontString = FontStringFromAppearanceRow(HT.GetAppearanceRow(trackerOwner.control:GetName()))
-    if not fontString and not trackerOwner:IsDetached() then
+    if fontString then
+        return fontString
+    end
+    local trackerManagerElement = HUD_TRACKER_MANAGER:GetPlatformHUDElement()
+    local trackerIsDetached = false
+    if trackerManagerElement then
+        trackerIsDetached = trackerOwner:IsDetached()
+    end
+    if not trackerIsDetached then
         fontString = FontStringFromAppearanceRow(HT.GetAppearanceRow(TRACKERS_SAVE_KEY))
     end
     return fontString
