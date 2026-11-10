@@ -30,16 +30,19 @@ function HT.CopyResourceBarGroup(sourceGroup)
     local healthWidth = HT.RESOURCE_BAR_GROUP_DEFAULT_WIDTH
     local enabled = false
     local preventExpand = false
+    local hideHealthGlow = false
     if type(sourceGroup) == "table" then
         enabled = sourceGroup.enabled == true
         healthWidth = ClampHealthWidth(sourceGroup.healthWidth)
         preventExpand = sourceGroup.preventExpand == true
+        hideHealthGlow = sourceGroup.hideHealthGlow == true
     end
     return
     {
         enabled = enabled,
         healthWidth = healthWidth,
         preventExpand = preventExpand,
+        hideHealthGlow = hideHealthGlow,
     }
 end
 
@@ -52,12 +55,95 @@ local function GetResourceBarGroupSettings()
     settings.healthWidth = ClampHealthWidth(settings.healthWidth)
     settings.enabled = settings.enabled == true
     settings.preventExpand = settings.preventExpand == true
+    settings.hideHealthGlow = settings.hideHealthGlow == true
     return settings
 end
 
 function HT.IsResourceBarGroupEnabled()
     local settings = HT.SV.resourceBarGroup
     return type(settings) == "table" and settings.enabled == true
+end
+
+function HT.IsHealthBuffGlowHidden()
+    local settings = HT.SV.resourceBarGroup
+    return type(settings) == "table" and settings.hideHealthGlow == true
+end
+
+local playerHealthBuffGlowHookInstalled = false
+
+local function GetPlayerArmorDamageModule()
+    local visualModules = PLAYER_ATTRIBUTE_BARS.attributeVisualizer.visualModules
+    for visualModule in pairs(visualModules) do
+        if visualModule:IsInstanceOf(ZO_UnitVisualizer_ArmorDamage) then
+            return visualModule
+        end
+    end
+    return nil
+end
+
+local function SetPlayerHealthBuffGlowControlsHidden(hidden)
+    local armorModule = GetPlayerArmorDamageModule()
+    if not armorModule then
+        return
+    end
+    local healthBar = ZO_PlayerAttributeHealth
+    local activeObjects = armorModule:GetOrCreateIncreasePowerPool():GetActiveObjects()
+    for _, container in pairs(activeObjects) do
+        local fadeAnimation = container.fadeAnimation
+        local glowOnHealthBar = fadeAnimation and fadeAnimation.bar == healthBar
+        if not glowOnHealthBar and container.increasedPowerGlow then
+            glowOnHealthBar = container.increasedPowerGlow:GetParent() == healthBar
+        end
+        if glowOnHealthBar then
+            if container.increasedPowerGlow then
+                container.increasedPowerGlow:SetHidden(hidden)
+            end
+            if container.increasedPowerTexture then
+                container.increasedPowerTexture:SetHidden(hidden)
+            end
+        end
+    end
+end
+
+local function PlayPowerIncreaseWithoutHealthBuffGlow(originalPlay, self, bar, info, instant)
+    local animation = originalPlay(self, bar, info, instant)
+    if HT.IsHealthBuffGlowHidden() and bar == ZO_PlayerAttributeHealth then
+        SetPlayerHealthBuffGlowControlsHidden(true)
+    end
+    return animation
+end
+
+local function ApplyPlayerHealthBuffGlow()
+    local armorModule = GetPlayerArmorDamageModule()
+    if not armorModule then
+        return
+    end
+    if not playerHealthBuffGlowHookInstalled then
+        playerHealthBuffGlowHookInstalled = true
+        -- InitializeBarValues stores self.PlayPowerIncreaseAnimation on barInfo
+        -- (ArmorDamage.lua 227) before this addon loads, so the instance method
+        -- is not what OnValueChanged calls.
+        local originalPlayPowerIncreaseAnimation = armorModule.PlayPowerIncreaseAnimation
+        local wrappedPlay = function (self, bar, info, instant)
+            return PlayPowerIncreaseWithoutHealthBuffGlow(originalPlayPowerIncreaseAnimation, self, bar, info, instant)
+        end
+        armorModule.PlayPowerIncreaseAnimation = wrappedPlay
+        local powerInfo = armorModule.barInfo and armorModule.barInfo[STAT_POWER]
+        if powerInfo then
+            powerInfo.playIncreaseAnimation = wrappedPlay
+        end
+    end
+    -- ArmorDamage.lua 446-449 parents increasedPowerGlow
+    -- (ArmorDamage.xml ZO_IncreasedPowerGlowArrow) and the animated halo
+    -- (increasedPower_animatedHalo_32fr.dds) onto the health bar.
+    SetPlayerHealthBuffGlowControlsHidden(HT.IsHealthBuffGlowHidden())
+end
+
+function HT.SetHealthBuffGlowHidden(hideHealthGlow)
+    local settings = GetResourceBarGroupSettings()
+    settings.hideHealthGlow = hideHealthGlow == true
+    ApplyPlayerHealthBuffGlow()
+    HT.RefreshLayoutInfoBoxSection()
 end
 
 function HT.IsResourceBarPreventExpand()
@@ -238,6 +324,7 @@ function HT.ApplyResourceBarGroup()
         groupedLayoutIsApplied = false
     end
     ApplyResourceBarExpandSetting()
+    ApplyPlayerHealthBuffGlow()
 end
 
 function HT.SetResourceBarPreventExpand(preventExpand)

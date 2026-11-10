@@ -69,6 +69,7 @@ local strings = {
     ["SI_HUDITORTOOLS_RESOURCE_GROUP"] = "Полосы ресурсов",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_ENABLE"] = "Пирамида",
     ["SI_HUDITORTOOLS_RESOURCE_PREVENT_EXPAND"] = "Не расширять",
+    ["SI_HUDITORTOOLS_RESOURCE_HIDE_HEALTH_GLOW"] = "Скрыть свечение баффа здоровья",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_WIDTH"] = "Ширина здоровья",
 
     ["SI_HUDITORTOOLS_FRAME_BATTLEGROUND"] = "Счёт поля боя",

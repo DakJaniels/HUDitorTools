@@ -69,6 +69,7 @@ local strings = {
     ["SI_HUDITORTOOLS_RESOURCE_GROUP"] = "Attributleisten",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_ENABLE"] = "Pyramidenlayout",
     ["SI_HUDITORTOOLS_RESOURCE_PREVENT_EXPAND"] = "Nicht vergrößern",
+    ["SI_HUDITORTOOLS_RESOURCE_HIDE_HEALTH_GLOW"] = "Lebensbuff-Leuchten ausblenden",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_WIDTH"] = "Lebensbreite",
 
     ["SI_HUDITORTOOLS_FRAME_BATTLEGROUND"] = "Schlachtfeld-Punktestand",

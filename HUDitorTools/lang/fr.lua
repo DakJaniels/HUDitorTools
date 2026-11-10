@@ -69,6 +69,7 @@ local strings = {
     ["SI_HUDITORTOOLS_RESOURCE_GROUP"] = "Barres de ressources",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_ENABLE"] = "Disposition en pyramide",
     ["SI_HUDITORTOOLS_RESOURCE_PREVENT_EXPAND"] = "Ne pas agrandir",
+    ["SI_HUDITORTOOLS_RESOURCE_HIDE_HEALTH_GLOW"] = "Masquer la lueur de buff de santé",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_WIDTH"] = "Largeur de santé",
 
     ["SI_HUDITORTOOLS_FRAME_BATTLEGROUND"] = "Score de champ de bataille",

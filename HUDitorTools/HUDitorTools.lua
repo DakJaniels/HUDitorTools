@@ -115,6 +115,7 @@ HT.Defaults =
         enabled = false,
         healthWidth = 474,
         preventExpand = false,
+        hideHealthGlow = false,
     },
 }
 

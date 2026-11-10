@@ -69,6 +69,7 @@ local strings = {
     ["SI_HUDITORTOOLS_RESOURCE_GROUP"] = "Resource bars",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_ENABLE"] = "Pyramid layout",
     ["SI_HUDITORTOOLS_RESOURCE_PREVENT_EXPAND"] = "Don't expand",
+    ["SI_HUDITORTOOLS_RESOURCE_HIDE_HEALTH_GLOW"] = "Hide health buff glow",
     ["SI_HUDITORTOOLS_RESOURCE_GROUP_WIDTH"] = "Health width",
 
     ["SI_HUDITORTOOLS_FRAME_BATTLEGROUND"] = "Battleground Score",

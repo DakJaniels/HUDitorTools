@@ -16,6 +16,7 @@
 
 - Dragging an element's edge keeps the size you release at. Letting go no longer shrinks the element to the smallest scale.
 - Each selected HUD element has its own Reset position, Reset scale, and arrow buttons. Each arrow moves that element by 1 unit.
+- Hide health buff glow turns off the increased-power glow on the player health bar. The low-health warning stays.
 
 ## 1.3.3 - Dakjaniels
 
