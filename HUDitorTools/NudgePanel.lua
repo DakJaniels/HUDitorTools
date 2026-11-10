@@ -8,6 +8,9 @@ local HT = HUDitorTools
 
 local NUDGE_PANEL_DRAW_LEVEL = 6
 local NUDGE_STEP = 1
+local NUDGE_PANEL_GAP = 4
+local NUDGE_PANEL_WIDTH = 302
+local NUDGE_PANEL_HEIGHT = 82
 
 local nudgePanelsInstalled = false
 
@@ -43,6 +46,7 @@ function HT.NudgeEditorElement(editorElement, offsetX, offsetY)
     editorElement:SetPositionFromTopLeft(left + offsetX, top + offsetY)
     HT.nudgeSkipsGridSnap = false
     UpdateInfoBoxCoordinates(editorElement)
+    HT.RefreshNudgePanel()
 end
 
 local function ResetEditorElementScale(editorElement)
@@ -66,6 +70,49 @@ local function ResetEditorElementScale(editorElement)
     HT.RefreshAppearanceInfoBox()
     if HT.RefreshLayoutInfoBoxSection then
         HT.RefreshLayoutInfoBoxSection()
+    end
+    HT.RefreshNudgePanel()
+end
+
+local function AnchorNudgePanelOnScreen(panel, elementControl)
+    local elementLeft, elementTop, elementRight, elementBottom = elementControl:GetScreenRect()
+    local panelWidth = panel:GetWidth()
+    local panelHeight = panel:GetHeight()
+    if panelWidth < 1 then
+        panelWidth = NUDGE_PANEL_WIDTH
+    end
+    if panelHeight < 1 then
+        panelHeight = NUDGE_PANEL_HEIGHT
+    end
+    local elementScale = elementControl:GetScale()
+    if not elementScale or elementScale == 0 then
+        elementScale = 1
+    end
+    local panelScreenWidth = panelWidth * elementScale
+    local panelScreenHeight = panelHeight * elementScale
+    local screenWidth = GuiRoot:GetWidth()
+    local screenHeight = GuiRoot:GetHeight()
+    local spaceBelow = screenHeight - elementBottom
+    local spaceAbove = elementTop
+    local neededHeight = panelScreenHeight + (NUDGE_PANEL_GAP * elementScale)
+    local placeAbove = spaceBelow < neededHeight and spaceAbove > spaceBelow
+
+    local elementCenterX = (elementLeft + elementRight) / 2
+    local panelLeft = elementCenterX - (panelScreenWidth / 2)
+    local panelRight = elementCenterX + (panelScreenWidth / 2)
+    local screenShiftX = 0
+    if panelLeft < 0 then
+        screenShiftX = -panelLeft
+    elseif panelRight > screenWidth then
+        screenShiftX = screenWidth - panelRight
+    end
+    local offsetX = screenShiftX / elementScale
+
+    panel:ClearAnchors()
+    if placeAbove then
+        panel:SetAnchor(BOTTOM, elementControl, TOP, offsetX, -NUDGE_PANEL_GAP)
+    else
+        panel:SetAnchor(TOP, elementControl, BOTTOM, offsetX, NUDGE_PANEL_GAP)
     end
 end
 
@@ -93,7 +140,11 @@ function HT.RefreshNudgePanel()
     for _, elementControl in ipairs(editor.elementControls) do
         local panel = elementControl.huditorToolsNudgePanel
         if panel then
-            panel:SetHidden(elementControl ~= selectedControl)
+            local isSelectedPanel = elementControl == selectedControl
+            panel:SetHidden(not isSelectedPanel)
+            if isSelectedPanel then
+                AnchorNudgePanelOnScreen(panel, elementControl)
+            end
         end
     end
 end

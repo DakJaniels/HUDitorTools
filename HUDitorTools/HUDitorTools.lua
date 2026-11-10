@@ -1295,10 +1295,16 @@ local function RaisePerfectPixelInfoBoxBackground()
             end
         end
         background:SetParent(infoBox)
+        -- Info box is resizeToFitConstrains Y (HUDEditor_Keyboard.xml). PP_BG is
+        -- anchored outside that box. Counting it grows the box forever and the
+        -- client crashes when select shows the box. Stock BG uses the same flag.
+        background:SetExcludeFromResizeToFitExtents(true)
         background:ClearAnchors()
         for _, savedAnchor in ipairs(savedAnchors) do
             background:SetAnchor(savedAnchor.point, savedAnchor.relativeTo, savedAnchor.relativePoint, savedAnchor.offsetX, savedAnchor.offsetY)
         end
+    elseif background then
+        background:SetExcludeFromResizeToFitExtents(true)
     end
     RaiseInfoBoxBackground(background)
     RaiseInfoBoxFields(infoBox, infoBox)
