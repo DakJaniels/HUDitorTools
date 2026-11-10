@@ -17,17 +17,29 @@
         </Backdrop>
         <Button name="$(parent)ResetPosition"
                 inherits="ZO_DefaultButton"
-                text="SI_HUDITORTOOLS_NUDGE_RESET_POSITION"
                 level="6">
           <Anchor point="TOPLEFT"
                   offsetX="8"
                   offsetY="8" />
           <Dimensions x="140"
                       y="28" />
+          <Controls>
+            <Label name="$(parent)Text"
+                   font="ZoFontGameBold"
+                   text="SI_HUDITORTOOLS_NUDGE_RESET_POSITION"
+                   horizontalAlignment="CENTER"
+                   verticalAlignment="CENTER"
+                   wrapMode="ELLIPSIS"
+                   layer="CONTROLS"
+                   level="6"
+                   mouseEnabled="false"
+                   color="INTERFACE_COLOR_TYPE_TEXT_COLORS:INTERFACE_TEXT_COLOR_NORMAL">
+              <AnchorFill />
+            </Label>
+          </Controls>
         </Button>
         <Button name="$(parent)ResetScale"
                 inherits="ZO_DefaultButton"
-                text="SI_HUDITORTOOLS_NUDGE_RESET_SCALE"
                 level="6">
           <Anchor point="LEFT"
                   relativeTo="$(parent)ResetPosition"
@@ -35,6 +47,20 @@
                   offsetX="6" />
           <Dimensions x="140"
                       y="28" />
+          <Controls>
+            <Label name="$(parent)Text"
+                   font="ZoFontGameBold"
+                   text="SI_HUDITORTOOLS_NUDGE_RESET_SCALE"
+                   horizontalAlignment="CENTER"
+                   verticalAlignment="CENTER"
+                   wrapMode="ELLIPSIS"
+                   layer="CONTROLS"
+                   level="6"
+                   mouseEnabled="false"
+                   color="INTERFACE_COLOR_TYPE_TEXT_COLORS:INTERFACE_TEXT_COLOR_NORMAL">
+              <AnchorFill />
+            </Label>
+          </Controls>
         </Button>
         <Button name="$(parent)NudgeLeft"
                 level="6">

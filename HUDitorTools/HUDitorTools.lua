@@ -1234,42 +1234,51 @@ end
 ------------------------------------------------------------------------------------------------------------------------
 -- PerfectPixel parents infoBox.PP_BG to PP.TLW_BG (DT_LOW). A child cannot draw
 -- above that tier, so the skinned background stays under the selection boxes
--- (tier HIGH, selected draw level 4). Selected box is 4; info-box controls are 15.
-local PERFECT_PIXEL_INFO_BOX_BACKGROUND_LEVEL = 5
+-- (tier HIGH, selected draw level 4). The nudge reset labels are on CONTROLS
+-- at level 6. These backdrops stay on CONTROLS at level 10 so they cover
+-- those two labels and leave every other info-box label alone.
+local INFO_BOX_BACKGROUND_DRAW_LEVEL = 10
+
+local function RaiseInfoBoxBackground(control)
+    if not control then
+        return
+    end
+    control:SetDrawLayer(DL_CONTROLS)
+    control:SetDrawLevel(INFO_BOX_BACKGROUND_DRAW_LEVEL)
+end
 
 local function RaisePerfectPixelInfoBoxBackground()
     local infoBox = ZO_HUDEditor_Keyboard_TLInfoBox
     if not infoBox then
         return
     end
+    RaiseInfoBoxBackground(infoBox:GetNamedChild("BG"))
     local background = infoBox.PP_BG
-    if not background or background:GetParent() == infoBox then
-        return
-    end
-    -- SetParent clears anchors. PerfectPixel anchored this backdrop to the info box.
-    local savedAnchors = {}
-    local anchorCount = background:GetNumAnchors()
-    for anchorIndex = 0, anchorCount - 1 do
-        local isValid, point, relativeTo, relativePoint, offsetX, offsetY = background:GetAnchor(anchorIndex)
-        if isValid then
-            savedAnchors[#savedAnchors + 1] =
-            {
-                point = point,
-                relativeTo = relativeTo,
-                relativePoint = relativePoint,
-                offsetX = offsetX,
-                offsetY = offsetY,
-            }
+    if background and background:GetParent() ~= infoBox then
+        -- SetParent clears anchors. PerfectPixel anchored this backdrop to the info box.
+        local savedAnchors = {}
+        local anchorCount = background:GetNumAnchors()
+        for anchorIndex = 0, anchorCount - 1 do
+            local isValid, point, relativeTo, relativePoint, offsetX, offsetY = background:GetAnchor(anchorIndex)
+            if isValid then
+                savedAnchors[#savedAnchors + 1] =
+                {
+                    point = point,
+                    relativeTo = relativeTo,
+                    relativePoint = relativePoint,
+                    offsetX = offsetX,
+                    offsetY = offsetY,
+                }
+            end
         end
+        background:SetParent(infoBox)
+        background:ClearAnchors()
+        for _, savedAnchor in ipairs(savedAnchors) do
+            background:SetAnchor(savedAnchor.point, savedAnchor.relativeTo, savedAnchor.relativePoint, savedAnchor.offsetX, savedAnchor.offsetY)
+        end
+        background:SetDrawTier(DT_HIGH)
     end
-    background:SetParent(infoBox)
-    background:ClearAnchors()
-    for _, savedAnchor in ipairs(savedAnchors) do
-        background:SetAnchor(savedAnchor.point, savedAnchor.relativeTo, savedAnchor.relativePoint, savedAnchor.offsetX, savedAnchor.offsetY)
-    end
-    background:SetDrawTier(DT_HIGH)
-    background:SetDrawLayer(DL_BACKGROUND)
-    background:SetDrawLevel(PERFECT_PIXEL_INFO_BOX_BACKGROUND_LEVEL)
+    RaiseInfoBoxBackground(background)
 end
 
 local function OnEditorSceneStateChange(oldState, newState)
