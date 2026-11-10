@@ -1235,16 +1235,39 @@ end
 -- PerfectPixel parents infoBox.PP_BG to PP.TLW_BG (DT_LOW). A child cannot draw
 -- above that tier, so the skinned background stays under the selection boxes
 -- (tier HIGH, selected draw level 4). The nudge reset labels are on CONTROLS
--- at level 6. These backdrops stay on CONTROLS at level 10 so they cover
--- those two labels and leave every other info-box label alone.
+-- at level 6. The info box backdrop stays on CONTROLS at level 10 so it covers
+-- those two labels. Dropdown and edit-box frames are backdrops with no level
+-- of their own (HUDEditor_Keyboard.xml ComboBox BG, ZO_SingleLineEditBackdrop),
+-- so they were still under that backdrop. They use HT.INFO_BOX_INTERACTABLE_LEVEL.
+-- Labels are not changed.
 local INFO_BOX_BACKGROUND_DRAW_LEVEL = 10
 
 local function RaiseInfoBoxBackground(control)
     if not control then
         return
     end
+    HT.SetEditorDrawTierAndLevel(control, INFO_BOX_BACKGROUND_DRAW_LEVEL)
     control:SetDrawLayer(DL_CONTROLS)
-    control:SetDrawLevel(INFO_BOX_BACKGROUND_DRAW_LEVEL)
+end
+
+local function RaiseInfoBoxFields(control, infoBox)
+    if not control then
+        return
+    end
+    local isEditBox = control:GetType() == CT_EDITBOX
+    local isFieldBackdrop = control:GetType() == CT_BACKDROP
+        and control ~= infoBox:GetNamedChild("BG")
+        and control ~= infoBox.PP_BG
+    if (isEditBox or isFieldBackdrop) and control:GetDrawLevel() < HT.INFO_BOX_INTERACTABLE_LEVEL then
+        HT.SetEditorDrawTierAndLevel(control, HT.INFO_BOX_INTERACTABLE_LEVEL)
+    end
+    local childCount = control:GetNumChildren()
+    for childIndex = 1, childCount do
+        local childControl = control:GetChild(childIndex)
+        if childControl then
+            RaiseInfoBoxFields(childControl, infoBox)
+        end
+    end
 end
 
 local function RaisePerfectPixelInfoBoxBackground()
@@ -1276,10 +1299,17 @@ local function RaisePerfectPixelInfoBoxBackground()
         for _, savedAnchor in ipairs(savedAnchors) do
             background:SetAnchor(savedAnchor.point, savedAnchor.relativeTo, savedAnchor.relativePoint, savedAnchor.offsetX, savedAnchor.offsetY)
         end
-        background:SetDrawTier(DT_HIGH)
     end
     RaiseInfoBoxBackground(background)
+    RaiseInfoBoxFields(infoBox, infoBox)
 end
+
+ZO_PostHook(ZO_HUDEditor_Keyboard, "RefreshInfoBox", function ()
+    local infoBox = ZO_HUDEditor_Keyboard_TLInfoBox
+    if infoBox then
+        RaiseInfoBoxFields(infoBox, infoBox)
+    end
+end)
 
 local function OnEditorSceneStateChange(oldState, newState)
     local isSceneShowing = newState == SCENE_SHOWING
